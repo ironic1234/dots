@@ -1,0 +1,42 @@
+alt - e : yabai -m space --layout bsp;
+alt - s : yabai -m space --layout stack;
+
+alt - down : yabai -m window --focus south;
+alt - up : yabai -m window --focus north;
+alt - right : yabai -m window --focus east;
+alt - left : yabai -m window --focus west;
+alt - j : yabai -m window --focus east;
+alt - h : yabai -m window --focus west;
+alt - u : yabai -m window --focus north;
+alt - n : yabai -m window --focus south;
+
+shift + alt - down : yabai -m window --swap south;
+shift + alt - up : yabai -m window --swap north;
+shift + alt - right : yabai -m window --swap east;
+shift + alt - left : yabai -m window --swap west;
+
+alt - f : yabai -m window --toggle zoom-fullscreen;
+alt - x : yabai -m window --close;
+
+ctrl + alt - right : yabai -m window --display 1; yabai -m display --focus 1;
+ctrl + alt - left : yabai -m window --display 2; yabai -m display --focus 2;
+alt - l : yabai -m display --focus 1;
+alt - k : yabai -m display --focus 2;
+
+alt - return : /Applications/kitty.app/Contents/MacOS/kitty --single-instance ~; 
+alt - 0x27 : export MOZ_DISABLE_SAFE_MODE_KEY=1; /Applications/Firefox.app/Contents/MacOS/firefox about:newtab;
+
+alt - w : skhd --key "cmd - w";
+alt - q : skhd --key "cmd - q";
+
+shift + alt - 1 : yabai -m window --space 1;
+shift + alt - 2 : yabai -m window --space 2;
+shift + alt - 3 : yabai -m window --space 3;
+shift + alt - 4 : yabai -m window --space 4; 
+alt - 1 : yabai -m space --focus 1
+alt - 2 : yabai -m space --focus 2
+alt - 3 : yabai -m space --focus 3
+alt - 4 : yabai -m space --focus 4
+
+alt - tab : yabai -m window --focus stack.next;
+shift + alt - tab : yabai -m window --focus stack.prev;
