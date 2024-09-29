@@ -26,4 +26,8 @@ require("lazy").setup({
 	require("plugins.startuptime"),
 	require("plugins.oil"),
 	require("plugins.autotag"),
+}, {
+	ui = {
+		border = "rounded",
+	},
 })
