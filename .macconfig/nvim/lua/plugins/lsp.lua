@@ -53,6 +53,9 @@ return {
                 vim.keymap.set("n", "gr", function()
                     vim.lsp.buf.references()
                 end)
+                vim.keymap.set("n", "ga", function()
+                    vim.lsp.buf.code_action()
+                end)
             end
 
             local function table_to_string(tbl)
