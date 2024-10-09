@@ -15,7 +15,7 @@ return {
         event = { "BufReadPre", "BufNewFile" },
         config = function()
             require("mason-lspconfig").setup({
-                ensure_installed = { "pyright", "gopls", "texlab", "clangd", "svelte", "ts_ls", "lua_ls" },
+                ensure_installed = { "pyright", "gopls", "texlab", "clangd", "svelte", "ts_ls", "lua_ls", "jsonls" },
             })
         end,
     },
@@ -38,7 +38,7 @@ return {
         event = { "BufReadPre", "BufNewFile" },
         config = function()
             local lspconfig = require("lspconfig")
-            local servers = { "pyright", "gopls", "texlab", "clangd", "svelte", "ts_ls", "lua_ls" }
+            local servers = { "pyright", "gopls", "texlab", "clangd", "svelte", "ts_ls", "lua_ls", "jsonls" }
 
             local on_attach = function()
                 vim.keymap.set("n", "gd", function()
@@ -56,31 +56,6 @@ return {
                 vim.keymap.set("n", "ga", function()
                     vim.lsp.buf.code_action()
                 end)
-            end
-
-            local function table_to_string(tbl)
-                local result = "{"
-                for k, v in pairs(tbl) do
-                    -- Check the key type (ignore any numerical keys - assume its an array)
-                    if type(k) == "string" then
-                        result = result .. '["' .. k .. '"]' .. "="
-                    end
-
-                    -- Check the value type
-                    if type(v) == "table" then
-                        result = result .. table_to_string(v)
-                    elseif type(v) == "boolean" then
-                        result = result .. tostring(v)
-                    else
-                        result = result .. '"' .. v .. '"'
-                    end
-                    result = result .. ","
-                end
-                -- Remove leading commas from the result
-                if result ~= "" then
-                    result = result:sub(1, result:len() - 1)
-                end
-                return result .. "}"
             end
 
             -- Specify how the border looks like
@@ -107,7 +82,7 @@ return {
                     prefix = "■ ", -- Could be '●', '▎', 'x', '■', , 
                 },
                 float = {
-                    border = table_to_string(border),
+                    border = border,
                 },
             })
 
@@ -238,6 +213,7 @@ return {
                     }
                 end
                 require("conform").format({ async = true, lsp_fallback = true, range = range })
+                vim.lsp.buf.format()
             end, { range = true })
 
             -- Auto-format on save
