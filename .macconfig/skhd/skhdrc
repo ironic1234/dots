@@ -23,8 +23,8 @@ ctrl + alt - left : yabai -m window --display 2; yabai -m display --focus 2;
 alt - l : yabai -m display --focus 1;
 alt - k : yabai -m display --focus 2;
 
-alt - return : /Applications/kitty.app/Contents/MacOS/kitty --single-instance ~; 
-alt - c : /Applications/kitty.app/Contents/MacOS/kitty --single-instance nvim -c "cd ~" -c "Alpha";
+alt - return : kitty --single-instance ~; 
+alt - c : kitty --single-instance nvim -c "cd ~" -c "Alpha";
 alt - 0x27 : export MOZ_DISABLE_SAFE_MODE_KEY=1; /Applications/Firefox.app/Contents/MacOS/firefox about:newtab;
 
 alt - w : skhd --key "cmd - w";
