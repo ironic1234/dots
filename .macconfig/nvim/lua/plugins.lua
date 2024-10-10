@@ -23,7 +23,6 @@ require("lazy").setup({
     require("plugins.vimtex"),
     require("plugins.lualine"),
     require("plugins.wit"),
-    require("plugins.startuptime"),
     require("plugins.oil"),
     require("plugins.autotag"),
 }, {
