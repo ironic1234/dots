@@ -5,10 +5,6 @@ alt - down : yabai -m window --focus south;
 alt - up : yabai -m window --focus north;
 alt - right : yabai -m window --focus east;
 alt - left : yabai -m window --focus west;
-alt - j : yabai -m window --focus east;
-alt - h : yabai -m window --focus west;
-alt - u : yabai -m window --focus north;
-alt - n : yabai -m window --focus south;
 
 shift + alt - down : yabai -m window --swap south;
 shift + alt - up : yabai -m window --swap north;
@@ -21,11 +17,10 @@ alt - x : yabai -m window --close;
 ctrl + alt - right : yabai -m window --display 1; yabai -m display --focus 1;
 ctrl + alt - left : yabai -m window --display 2; yabai -m display --focus 2;
 alt - l : yabai -m display --focus 1;
-alt - k : yabai -m display --focus 2;
+alt - j : yabai -m display --focus 2;
 
-alt - return : kitty --single-instance ~; 
-alt - c : kitty --single-instance nvim -c "cd ~" -c "Alpha";
-alt - 0x27 : export MOZ_DISABLE_SAFE_MODE_KEY=1; /Applications/Firefox.app/Contents/MacOS/firefox about:newtab;
+alt - k : kitty --single-instance ~; 
+alt - t : export MOZ_DISABLE_SAFE_MODE_KEY=1; /Applications/Firefox.app/Contents/MacOS/firefox about:newtab;
 
 alt - w : skhd --key "cmd - w";
 alt - q : skhd --key "cmd - q";
