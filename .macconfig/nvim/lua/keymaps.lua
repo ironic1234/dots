@@ -16,4 +16,4 @@ vim.keymap.set("n", "<leader>fo", vim.cmd.Oil, {})
 vim.keymap.set("n", "<leader>fa", vim.cmd.Alpha)
 
 -- StartupTime keymap
-vim.keymap.set("n", "<leader>fs", vim.cmd.StartupTime)
+vim.keymap.set("n", "<leader>fs", "<Cmd>Lazy profile<CR>")
