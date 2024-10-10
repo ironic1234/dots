@@ -100,6 +100,8 @@ source $ZSH/oh-my-zsh.sh
 # alias zshconfig="mate ~/.zshrc"
 # alias ohmyzsh="mate ~/.oh-my-zsh"
 
+export PATH="/home/ronak/.local/share/gem/ruby/3.2.0/bin:$PATH"
+
 alias kittycat="kitten icat"
 alias weather="curl wttr.in"
 alias maps="telnet mapscii.me"
@@ -112,4 +114,5 @@ bindkey '^ ' autosuggest-accept
 ZSH_AUTOSUGGEST_STRATEGY=(completion)
 
 cd ~
+
 
