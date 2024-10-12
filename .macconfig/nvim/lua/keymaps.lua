@@ -30,7 +30,7 @@ vim.api.nvim_create_autocmd("InsertEnter", {
     pattern = "*",
     callback = function()
         vim.b.updaterestore = vim.o.updatetime
-        vim.o.updatetime = 500
+        vim.o.updatetime = 5000
     end,
 })
 

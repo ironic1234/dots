@@ -15,5 +15,5 @@ vim.keymap.set("n", "<leader>fo", vim.cmd.Oil, {})
 -- Alpha keymap
 vim.keymap.set("n", "<leader>fa", vim.cmd.Alpha)
 
--- StartupTime keymap
+-- StartupTime keymaps
 vim.keymap.set("n", "<leader>fs", vim.cmd.StartupTime)
