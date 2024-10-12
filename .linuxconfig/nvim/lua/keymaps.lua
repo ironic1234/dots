@@ -17,3 +17,28 @@ vim.keymap.set("n", "<leader>fa", vim.cmd.Alpha)
 
 -- StartupTime keymaps
 vim.keymap.set("n", "<leader>fs", vim.cmd.StartupTime)
+
+-- Autoquit insert mode
+vim.api.nvim_create_autocmd("CursorHoldI", {
+    pattern = "*",
+    callback = function()
+        vim.cmd("stopinsert")
+    end,
+})
+
+vim.api.nvim_create_autocmd("InsertEnter", {
+    pattern = "*",
+    callback = function()
+        vim.b.updaterestore = vim.o.updatetime
+        vim.o.updatetime = 500
+    end,
+})
+
+vim.api.nvim_create_autocmd("InsertLeave", {
+    pattern = "*",
+    callback = function()
+        if vim.b.updaterestore then
+            vim.o.updatetime = vim.b.updaterestore
+        end
+    end,
+})
