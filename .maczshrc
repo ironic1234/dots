@@ -141,4 +141,5 @@ ZSH_AUTOSUGGEST_STRATEGY=(completion)
 cd ~
 
 export STM32CubeMX_PATH=/Applications/STMicroelectronics/STM32CubeMX.app/Contents/Resources
-export PATH="/opt/homebrew/opt/sphinx-doc/bin:$PATH"
+
+clear
