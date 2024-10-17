@@ -18,6 +18,9 @@ vim.keymap.set("n", "<leader>fa", vim.cmd.Alpha)
 -- StartupTime keymap
 vim.keymap.set("n", "<leader>fs", "<Cmd>Lazy profile<CR>")
 
+-- Go back to previous file
+vim.keymap.set("n", "<leader>gb", "<Cmd>e#<CR>")
+
 -- Autoquit insert mode
 vim.api.nvim_create_autocmd("CursorHoldI", {
     pattern = "*",
