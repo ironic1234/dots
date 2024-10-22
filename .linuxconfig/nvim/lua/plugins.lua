@@ -22,7 +22,6 @@ require("lazy").setup({
     require("plugins.alpha"),
     require("plugins.lualine"),
     require("plugins.wit"),
-    require("plugins.startuptime"),
     require("plugins.oil"),
 }, {
     ui = {

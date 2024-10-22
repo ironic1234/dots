@@ -109,6 +109,7 @@ alias ssh="kitten ssh"
 alias catvim="nvim"
 alias :q="exit"
 alias :qa="killall kitty"
+alias fastfetch="clear && fastfetch"
 
 bindkey '^ ' autosuggest-accept
 ZSH_AUTOSUGGEST_STRATEGY=(completion)
