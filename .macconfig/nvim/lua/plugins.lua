@@ -25,7 +25,6 @@ require("lazy").setup({
     require("plugins.wit"),
     require("plugins.oil"),
     require("plugins.autotag"),
-    require("plugins.markview"),
 }, {
     ui = {
         border = "rounded",
