@@ -25,7 +25,16 @@ Text Editor of choice
 	- [Telescope](https://github.com/nvim-telescope/telescope.nvim) - Fuzzy finding files
 	- [Treesitter](https://github.com/nvim-treesitter/nvim-treesitter) - Parses languages and provides syntax highlighting
 	- [Vimtex](https://github.com/lervag/vimtex) - Latex integration
-	- [Wit](https://github.com/Aliqyan-21/wit.nvim) - Google search from neovim
+	- [Wit](https://github.com/Aliqyan-21/wit.nvim) - Google search from Neovim
+## [Kitty](https://github.com/kovidgoyal/kitty)
+Terminal emulator of choice
+- [Catppuccin](https://github.com/catppuccin/kitty) Theme
+- [Hack Nerd Font Mono](https://github.com/ryanoasis/nerd-fonts)
+## [zsh](https://www.zsh.org/)
+Shell of choice
+- [Oh-my-zsh](https://github.com/ohmyzsh/ohmyzsh) for configuration
+- Git, syntax highlighting, autosuggestions, and interactive cd plugins.
+- alanpeabody prompt
 ## [Yabai](https://github.com/koekeishiya/yabai)
 Tiling window manager for MacOS
 - I have disabled SIP which allows for workspaces
@@ -62,8 +71,8 @@ Borders around windows
 Browser of choice
 - [Catppuccin](https://github.com/catppuccin/firefox) Theme
 - [Vimium](https://github.com/philc/vimium) - Vim motions in firefox
-- [Dark Reader](https://github.com/darkreader/darkreader) - Turn any website into catppuccin
-- [Stylus](https://github.com/openstyles/stylus) - Userstyles = catppuccin for many common websites
+- [Dark Reader](https://github.com/darkreader/darkreader) - Turn any website into [catppuccin](https://github.com/catppuccin/dark-reader)
+- [Stylus](https://github.com/openstyles/stylus) - Userstyles = [catppuccin](https://github.com/catppuccin/userstyles) for many common websites
 - [UBlock Origin](https://github.com/gorhill/uBlock) - Adblocker that works
 ## [Spotify](https://spotify.com)
 Good music
