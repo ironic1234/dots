@@ -26,6 +26,7 @@ require("lazy").setup({
     require("plugins.oil"),
     require("plugins.autotag"),
     require("plugins.live-preview"),
+    require("plugins.neogit"),
 }, {
     ui = {
         border = "rounded",
