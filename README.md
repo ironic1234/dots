@@ -1,4 +1,5 @@
 # MacOS
+![MacOS Screenshot](background/desktop.png)
 ## [Neovim](https://neovim.io/)
 Text Editor of choice
 - Vim motions
