@@ -65,7 +65,7 @@ Keybindings
 Status bar to take up awkward notch space
 ## [JankyBorders](https://github.com/FelixKratz/JankyBorders)
 Borders around windows
-- Lavender - active windows
+- Orange - active windows
 - Gray - inactive windows
 ## [Firefox](https://www.mozilla.org/en-US/firefox/)
 Browser of choice
