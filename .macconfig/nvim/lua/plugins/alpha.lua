@@ -6,7 +6,7 @@ return {
         "nvim-lua/plenary.nvim",
     },
     config = function()
-        vim.cmd([[hi HeaderGroup guifg=#b4befe guibg=NONE]])
+        vim.cmd([[hi HeaderGroup guifg=#fab387 guibg=NONE]])
 
         local theta = require("alpha.themes.theta")
         theta.header.val = {

@@ -14,4 +14,4 @@ vim.loader.enable()
 
 -- Colorscheme
 vim.cmd.colorscheme("catppuccin")
-vim.api.nvim_set_hl(0, "LineNr", { fg = "#A6E3A1" })
+vim.api.nvim_set_hl(0, "LineNr", { fg = "#FAB387" })
