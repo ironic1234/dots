@@ -40,7 +40,30 @@ return {
             local lspconfig = require("lspconfig")
             local servers = { "pyright", "gopls", "texlab", "clangd", "svelte", "ts_ls", "lua_ls", "jsonls" }
 
+            -- Specify how the border looks like
+            local border = {
+                { "┌", "FloatBorder" },
+                { "─", "FloatBorder" },
+                { "┐", "FloatBorder" },
+                { "│", "FloatBorder" },
+                { "┘", "FloatBorder" },
+                { "─", "FloatBorder" },
+                { "└", "FloatBorder" },
+                { "│", "FloatBorder" },
+            }
+
             local on_attach = function()
+                -- Override open_floating_preview for global hover settings
+                local orig_floating_preview = vim.lsp.util.open_floating_preview
+
+                vim.lsp.util.open_floating_preview = function(contents, syntax, opts, ...)
+                    opts = opts or {}
+                    opts.border = border -- Set border style
+                    opts.max_width = 80 -- Set max width
+                    opts.max_height = 20 -- Set max height
+                    return orig_floating_preview(contents, syntax, opts, ...)
+                end
+
                 vim.keymap.set("n", "gd", function()
                     vim.lsp.buf.definition()
                 end)
@@ -61,24 +84,6 @@ return {
                 end)
             end
 
-            -- Specify how the border looks like
-            local border = {
-                { "┌", "FloatBorder" },
-                { "─", "FloatBorder" },
-                { "┐", "FloatBorder" },
-                { "│", "FloatBorder" },
-                { "┘", "FloatBorder" },
-                { "─", "FloatBorder" },
-                { "└", "FloatBorder" },
-                { "│", "FloatBorder" },
-            }
-
-            -- Add the border on hover and on signature help popup window
-            local handlers = {
-                ["textDocument/hover"] = vim.lsp.with(vim.lsp.handlers.hover, { border = border }),
-                ["textDocument/signatureHelp"] = vim.lsp.with(vim.lsp.handlers.signature_help, { border = border }),
-            }
-
             -- Add border to the diagnostic popup window
             vim.diagnostic.config({
                 virtual_text = {
@@ -92,7 +97,6 @@ return {
             for _, server in ipairs(servers) do
                 lspconfig[server].setup({
                     on_attach = on_attach,
-                    handlers = handlers,
                 })
             end
         end,
