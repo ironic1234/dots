@@ -45,3 +45,6 @@ vim.api.nvim_create_autocmd("InsertLeave", {
         end
     end,
 })
+
+-- Undotree
+vim.keymap.set("n", "<leader>u", "<cmd>lua require('undotree').toggle()<cr>")
