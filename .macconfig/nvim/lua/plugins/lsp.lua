@@ -56,6 +56,7 @@ return {
                 -- Override open_floating_preview for global hover settings
                 local orig_floating_preview = vim.lsp.util.open_floating_preview
 
+                ---@diagnostic disable-next-line: duplicate-set-field
                 vim.lsp.util.open_floating_preview = function(contents, syntax, opts, ...)
                     opts = opts or {}
                     opts.border = border -- Set border style
@@ -90,6 +91,7 @@ return {
                     prefix = "■ ", -- Could be '●', '▎', 'x', '■', , 
                 },
                 float = {
+                    ---@diagnostic disable-next-line: assign-type-mismatch
                     border = border,
                 },
             })
