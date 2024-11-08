@@ -1,5 +1,6 @@
 vim.opt.number = true
 vim.opt.relativenumber = true
+vim.opt.numberwidth = 2
 vim.opt.mouse = "a"
 vim.opt.cursorline = true
 vim.opt.cursorlineopt = "number"
