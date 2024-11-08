@@ -28,6 +28,7 @@ require("lazy").setup({
     require("plugins.live-preview"),
     require("plugins.neogit"),
     require("plugins.undotree"),
+    require("plugins.zen-mode"),
 }, {
     ui = {
         border = "rounded",

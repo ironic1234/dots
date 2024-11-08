@@ -15,7 +15,16 @@ return {
         event = { "BufReadPre", "BufNewFile" },
         config = function()
             require("mason-lspconfig").setup({
-                ensure_installed = { "pyright", "gopls", "texlab", "clangd", "svelte", "ts_ls", "lua_ls", "jsonls" },
+                ensure_installed = {
+                    "pyright",
+                    "gopls",
+                    "texlab",
+                    "clangd",
+                    "svelte",
+                    "ts_ls",
+                    "lua_ls",
+                    "jsonls",
+                },
             })
         end,
     },
@@ -26,7 +35,13 @@ return {
         event = { "BufReadPre", "BufNewFile" },
         config = function()
             require("mason-conform").setup({
-                ensure_installed = { "prettier", "stylua", "black", "clang-format", "latexindent" },
+                ensure_installed = {
+                    "prettier",
+                    "stylua",
+                    "black",
+                    "clang-format",
+                    "latexindent",
+                },
             })
         end,
     },
@@ -38,7 +53,16 @@ return {
         event = { "BufReadPre", "BufNewFile" },
         config = function()
             local lspconfig = require("lspconfig")
-            local servers = { "pyright", "gopls", "texlab", "clangd", "svelte", "ts_ls", "lua_ls", "jsonls" }
+            local servers = {
+                "pyright",
+                "gopls",
+                "texlab",
+                "clangd",
+                "svelte",
+                "ts_ls",
+                "lua_ls",
+                "jsonls",
+            }
 
             -- Specify how the border looks like
             local border = {
