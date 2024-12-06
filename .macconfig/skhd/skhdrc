@@ -20,8 +20,7 @@ alt - l : yabai -m display --focus 1;
 alt - j : yabai -m display --focus 2;
 
 alt - k : kitty --single-instance ~; 
-alt - t : export MOZ_DISABLE_SAFE_MODE_KEY=1; /Applications/Firefox\ Nightly.app/Contents/MacOS/firefox https://www.google.com;
-
+alt - t : "/Applications/Zen Twilight.app/Contents/MacOS/zen"
 alt - w : skhd --key "cmd - w";
 alt - q : skhd --key "cmd - q";
 

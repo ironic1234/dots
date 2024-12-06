@@ -113,6 +113,7 @@ alias ls="eza --icons=always --hyperlink -a"
 alias :q="exit"
 alias :qa="killall kitty"
 alias code="code-insiders"
+alias cv="catvim"
 
 openclose() {
 	"$@" &
