@@ -39,7 +39,6 @@ return {
                     "prettier",
                     "stylua",
                     "black",
-                    "clang-format",
                     "latexindent",
                 },
             })
@@ -228,8 +227,6 @@ return {
                     html = { "prettier" },
                     lua = { "stylua" },
                     python = { "black" },
-                    cpp = { "clang-format" },
-                    c = { "clang-format" },
                     css = { "prettier" },
                     tex = { "latexindent" },
                     svelte = { "prettier" },
