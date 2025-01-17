@@ -114,6 +114,8 @@ alias :q="exit"
 alias :qa="killall kitty"
 alias code="code-insiders"
 alias cv="catvim"
+alias matlab="/Applications/MATLAB_R2024b.app/bin/matlab -nodesktop"
+alias buildenv="docker run -v .:/mnt -it --rm buildenv ash"
 
 openclose() {
 	"$@" &
