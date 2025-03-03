@@ -114,8 +114,14 @@ alias :q="exit"
 alias :qa="killall kitty"
 alias code="code-insiders"
 alias cv="catvim"
-alias matlab="/Applications/MATLAB_R2024b.app/bin/matlab -nodesktop"
-alias buildenv="docker run -v .:/mnt -it --rm buildenv ash"
+alias buildenv="docker run -v .:/mnt -w /mnt -it --rm buildenv ash"
+
+# Multiple Homebrews on Apple Silicon
+if [ "$(arch)" = "arm64" ]; then
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+else
+    eval "$(/usr/local/bin/brew shellenv)"
+fi
 
 openclose() {
 	"$@" &
@@ -138,6 +144,10 @@ export FZF_DEFAULT_OPTS=" \
 --color=marker:#b4befe,fg+:#cdd6f4,prompt:#cba6f7,hl+:#f38ba8 \
 --color=selected-bg:#45475a \
 --multi"
+
+export VULKAN_SDK=/Users/ronak/VulkanSDK/1.4.304.1/macOS
+export VK_ICD_FILENAMES=$VULKAN_SDK/share/vulkan/icd.d/MoltenVK_icd.json
+export DYLD_LIBRARY_PATH=$VULKAN_SDK/lib:$DYLD_LIBRARY_PATH
 
 bindkey '^ ' autosuggest-accept
 ZSH_AUTOSUGGEST_STRATEGY=(completion)
