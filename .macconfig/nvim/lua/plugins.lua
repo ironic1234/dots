@@ -29,8 +29,8 @@ require("lazy").setup({
 	require("plugins.neogit"),
 	require("plugins.undotree"),
 	require("plugins.zen-mode"),
-	require("plugins.rainbow-delimiters"),
 	require("plugins.go-up"),
+	require("plugins.duck"),
 }, {
 	ui = {
 		border = "rounded",
