@@ -4,7 +4,9 @@ alt - s : yabai -m space --layout stack;
 alt - down : yabai -m window --focus south;
 alt - up : yabai -m window --focus north;
 alt - right : yabai -m window --focus east;
+alt - p : yabai -m window --focus east;
 alt - left : yabai -m window --focus west;
+alt - o : yabai -m window --focus west;
 
 shift + alt - down : yabai -m window --swap south;
 shift + alt - up : yabai -m window --swap north;
@@ -19,7 +21,7 @@ ctrl + alt - left : yabai -m window --display 2; yabai -m display --focus 2;
 alt - l : yabai -m display --focus 1;
 alt - j : yabai -m display --focus 2;
 
-alt - k : open /Applications/kitty.app; 
+alt - k : kitty --single-instance; 
 alt - w : skhd --key "cmd - w";
 alt - q : skhd --key "cmd - q";
 
