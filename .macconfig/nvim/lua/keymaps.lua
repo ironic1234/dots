@@ -21,31 +21,6 @@ vim.keymap.set("n", "<leader>fs", "<Cmd>Lazy profile<CR>")
 -- Go back to previous file
 vim.keymap.set("n", "<leader>gb", "<Cmd>e#<CR>")
 
--- Autoquit insert mode
-vim.api.nvim_create_autocmd("CursorHoldI", {
-	pattern = "*",
-	callback = function()
-		vim.cmd("stopinsert")
-	end,
-})
-
-vim.api.nvim_create_autocmd("InsertEnter", {
-	pattern = "*",
-	callback = function()
-		vim.b.updaterestore = vim.o.updatetime
-		vim.o.updatetime = 5000
-	end,
-})
-
-vim.api.nvim_create_autocmd("InsertLeave", {
-	pattern = "*",
-	callback = function()
-		if vim.b.updaterestore then
-			vim.o.updatetime = vim.b.updaterestore
-		end
-	end,
-})
-
 -- Undotree
 vim.keymap.set("n", "<leader>u", "<cmd>lua require('undotree').toggle()<cr>")
 

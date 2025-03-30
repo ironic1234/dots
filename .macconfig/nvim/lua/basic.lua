@@ -17,3 +17,7 @@ vim.opt.clipboard:append("unnamedplus")
 -- Colorscheme
 vim.cmd.colorscheme("catppuccin")
 vim.api.nvim_set_hl(0, "LineNr", { fg = "#FAB387" })
+
+vim.g.python_host_prog = "/opt/homebrew/opt/python/libexec/bin/python"
+vim.g.python3_host_prog = "/opt/homebrew/opt/python/libexec/bin/python"
+vim.g.loaded_perl_provider = 0

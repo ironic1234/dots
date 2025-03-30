@@ -114,7 +114,7 @@ alias :q="exit"
 alias :qa="killall kitty"
 alias code="code-insiders"
 alias cv="catvim"
-alias buildenv="docker run -v .:/mnt -w /mnt -it --rm buildenv ash"
+alias buildenv='docker run -v "$PWD":/mnt -w /mnt -it --rm alpine:latest sh -c "apk add --no-cache gcc gdb valgrind musl-dev vim make && exec ash"'
 
 # Multiple Homebrews on Apple Silicon
 if [ "$(arch)" = "arm64" ]; then
@@ -152,8 +152,15 @@ export DYLD_LIBRARY_PATH=$VULKAN_SDK/lib:$DYLD_LIBRARY_PATH
 bindkey '^ ' autosuggest-accept
 ZSH_AUTOSUGGEST_STRATEGY=(completion)
 
-cd ~
-
 export STM32CubeMX_PATH=/Applications/STMicroelectronics/STM32CubeMX.app/Contents/Resources
 
-clear
+cd ~
+
+# The following lines have been added by Docker Desktop to enable Docker CLI completions.
+fpath=(/Users/ronak/.docker/completions $fpath)
+autoload -Uz compinit
+compinit
+# End of Docker CLI completions
+
+bindkey -v
+

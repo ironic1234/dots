@@ -7,7 +7,6 @@ return {
 			require("mason").setup()
 		end,
 	},
-
 	-- Mason LSP Config setup
 	{
 		"williamboman/mason-lspconfig.nvim",
@@ -16,7 +15,7 @@ return {
 		config = function()
 			require("mason-lspconfig").setup({
 				ensure_installed = {
-					"pyright",
+					"pylsp",
 					"gopls",
 					"texlab",
 					"clangd",
@@ -25,6 +24,7 @@ return {
 					"lua_ls",
 					"jsonls",
 					"matlab_ls",
+					"ruff",
 				},
 			})
 		end,
@@ -54,7 +54,7 @@ return {
 		config = function()
 			local lspconfig = require("lspconfig")
 			local servers = {
-				"pyright",
+				"pylsp",
 				"gopls",
 				"texlab",
 				"clangd",
@@ -63,6 +63,7 @@ return {
 				"lua_ls",
 				"jsonls",
 				"matlab_ls",
+				"ruff",
 			}
 
 			-- Specify how the border looks like
@@ -122,9 +123,30 @@ return {
 			})
 
 			for _, server in ipairs(servers) do
-				lspconfig[server].setup({
-					on_attach = on_attach,
-				})
+				if server == "pylsp" then
+					lspconfig[server].setup({
+						on_attach = on_attach,
+						settings = {
+							pylsp = {
+								plugins = {
+									jedi_completion = { enabled = true },
+									jedi_hover = { enabled = true },
+									jedi_references = { enabled = true },
+									jedi_signature_help = { enabled = true },
+									jedi_symbols = { enabled = true },
+
+									pyflakes = { enabled = false },
+									pycodestyle = { enabled = false },
+									mccabe = { enabled = false },
+								},
+							},
+						},
+					})
+				else
+					lspconfig[server].setup({
+						on_attach = on_attach,
+					})
+				end
 			end
 		end,
 	},
@@ -202,6 +224,7 @@ return {
 					{ name = "nvim_lsp" },
 					{ name = "luasnip" },
 					{ name = "lazydev", group_index = 0 },
+					{ name = "path" },
 				}, {
 					{ name = "buffer" },
 				}),
