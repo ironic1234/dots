@@ -182,6 +182,16 @@ return {
 			local cmp_autopairs = require("nvim-autopairs.completion.cmp")
 			local cmp = require("cmp")
 			cmp.event:on("confirm_done", cmp_autopairs.on_confirm_done())
+			cmp.event:on("confirm_done", function(event)
+				local entry = event.entry
+				if entry.source.name == "copilot" then
+					vim.lsp.util.open_floating_preview({ entry.completion_item.label }, "plaintext", {
+						border = "rounded",
+						focusable = false,
+						close_events = { "BufLeave", "InsertEnter" },
+					})
+				end
+			end)
 			cmp.setup({
 				snippet = {
 					expand = function(args)
@@ -221,6 +231,7 @@ return {
 					documentation = cmp.config.window.bordered(),
 				},
 				sources = cmp.config.sources({
+					{ name = "copilot" },
 					{ name = "nvim_lsp" },
 					{ name = "luasnip" },
 					{ name = "lazydev", group_index = 0 },
