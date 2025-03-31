@@ -54,7 +54,6 @@ do
     background.border_color=0xfffab387
     label.drawing=off
     script="$PLUGIN_DIR/space.sh"
-    click_script="yabai -m space --focus $sid"
   )
   sketchybar --add space space."$sid" left --set space."$sid" "${space[@]}"
 done
