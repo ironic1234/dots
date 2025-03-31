@@ -142,12 +142,29 @@ return {
 							},
 						},
 					})
+				elseif server == "lua_ls" then
+					lspconfig[server].setup({
+						on_attach = on_attach,
+						settings = {
+							Lua = {
+								hint = {
+									enable = true, -- Enable inlay hints
+									setType = true, -- Show inferred types
+									paramType = true, -- Show inferred parameter types
+									paramName = "All", -- Show parameter names for all function calls
+									semicolon = "Disable", -- Disable semicolon hints
+									arrayIndex = "Enable", -- Disable array index hints
+								},
+							},
+						},
+					})
 				else
 					lspconfig[server].setup({
 						on_attach = on_attach,
 					})
 				end
 			end
+			vim.lsp.inlay_hint.enable()
 		end,
 	},
 
@@ -188,11 +205,12 @@ return {
 					vim.lsp.util.open_floating_preview({ entry.completion_item.label }, "plaintext", {
 						border = "rounded",
 						focusable = false,
-						close_events = { "BufLeave", "InsertEnter" },
+						close_events = { "BufLeave", "InsertLeave" },
 					})
 				end
 			end)
 			cmp.setup({
+				preselect = cmp.PreselectMode.None,
 				snippet = {
 					expand = function(args)
 						require("luasnip").lsp_expand(args.body)
@@ -206,7 +224,7 @@ return {
 						i = cmp.mapping.abort(),
 						c = cmp.mapping.close(),
 					}),
-					["<CR>"] = cmp.mapping.confirm({ select = true }),
+					["<CR>"] = cmp.mapping.confirm({ select = false }),
 					["<Tab>"] = cmp.mapping(function(fallback)
 						if cmp.visible() then
 							cmp.select_next_item()
