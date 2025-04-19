@@ -9,6 +9,31 @@ vim.keymap.set("n", "<leader>fg", builtin.live_grep, {})
 vim.keymap.set("n", "<leader>fb", builtin.buffers, {})
 vim.keymap.set("n", "<leader>fh", builtin.help_tags, {})
 
+-- Tenaille (wrapping) keymaps
+local wrap = require("tenaille").wrap
+
+vim.keymap.set("v", '"', function()
+	wrap({ '"', '"' })
+end)
+vim.keymap.set("v", "'", function()
+	wrap({ "'", "'" })
+end)
+vim.keymap.set("v", "`", function()
+	wrap({ "`", "`" })
+end)
+vim.keymap.set("v", "(", function()
+	wrap({ "(", ")" })
+end)
+vim.keymap.set("v", "[", function()
+	wrap({ "[", "]" })
+end)
+vim.keymap.set("v", "{", function()
+	wrap({ "{", "}" })
+end)
+vim.keymap.set("v", "<", function()
+	wrap({ "<", ">" })
+end)
+
 -- Oil keymap
 vim.keymap.set("n", "<leader>fo", vim.cmd.Oil, {})
 

@@ -10,6 +10,7 @@ vim.opt.wrap = true
 vim.opt.breakindent = true
 vim.opt.tabstop = 4
 vim.opt.shiftwidth = 4
+vim.opt.showmode = false
 vim.opt.expandtab = true
 vim.loader.enable()
 vim.opt.clipboard:append("unnamedplus")

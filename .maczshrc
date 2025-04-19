@@ -71,7 +71,7 @@ source ~/.zsh/catppuccin_mocha-zsh-syntax-highlighting.zsh
 # Custom plugins may be added to $ZSH_CUSTOM/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
-plugins=(git zsh-autosuggestions zsh-syntax-highlighting zsh-interactive-cd)
+plugins=(git zsh-autosuggestions zsh-syntax-highlighting zsh-interactive-cd zsh-github-copilot)
 
 FPATH="$(brew --prefix)/share/zsh/site-functions:${FPATH}"
 source $ZSH/oh-my-zsh.sh
@@ -114,7 +114,7 @@ alias :q="exit"
 alias :qa="killall kitty"
 alias code="code-insiders"
 alias cv="catvim"
-alias buildenv='docker run -v "$PWD":/mnt -w /mnt -it --rm alpine:latest sh -c "apk add --no-cache gcc gdb valgrind musl-dev vim make && exec ash"'
+alias bu="brew update && brew upgrade --greedy"
 
 # Multiple Homebrews on Apple Silicon
 if [ "$(arch)" = "arm64" ]; then
@@ -128,6 +128,29 @@ openclose() {
 	disown
 	exit
 }
+
+
+devbox() {
+  local IMAGE_NAME="my-dev-env"
+
+  # Build image if not exists
+  if ! docker image inspect $IMAGE_NAME >/dev/null 2>&1; then
+    docker build --platform linux/amd64 -t $IMAGE_NAME - <<'EOF'
+FROM debian:latest
+RUN apt update && apt install -y gcc gdb valgrind vim make && apt clean
+WORKDIR /mnt
+EOF
+  fi
+
+  # Run a temporary container with current dir mounted, and auto-remove after exit
+  docker run -it --rm \
+    -v "$PWD":/mnt \
+    -w /mnt \
+    --platform linux/amd64 \
+    $IMAGE_NAME \
+    bash
+}
+
 
 eval "$(fzf --zsh)"
 
@@ -149,8 +172,7 @@ export VULKAN_SDK=/Users/ronak/VulkanSDK/1.4.304.1/macOS
 export VK_ICD_FILENAMES=$VULKAN_SDK/share/vulkan/icd.d/MoltenVK_icd.json
 export DYLD_LIBRARY_PATH=$VULKAN_SDK/lib:$DYLD_LIBRARY_PATH
 
-bindkey '^ ' autosuggest-accept
-ZSH_AUTOSUGGEST_STRATEGY=(completion)
+
 
 export STM32CubeMX_PATH=/Applications/STMicroelectronics/STM32CubeMX.app/Contents/Resources
 
@@ -164,3 +186,7 @@ compinit
 
 bindkey -v
 
+bindkey '^ ' autosuggest-accept
+bindkey '»' zsh_gh_copilot_explain  
+bindkey '«' zsh_gh_copilot_suggest  
+ZSH_AUTOSUGGEST_STRATEGY=(completion)
