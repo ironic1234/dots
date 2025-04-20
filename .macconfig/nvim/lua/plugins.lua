@@ -32,6 +32,7 @@ require("lazy").setup({
 	require("plugins.go-up"),
 	require("plugins.duck"),
 	require("plugins.copilot"),
+	require("plugins.dap"),
 }, {
 	ui = {
 		border = "rounded",
