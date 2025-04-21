@@ -29,6 +29,7 @@ return {
 					LineNr = { fg = colors.peach },
 					WinSeparator = { fg = colors.peach },
 					VertSplit = { fg = colors.peach },
+					HeaderGroup = { fg = colors.peach },
 				}
 			end,
 		})
