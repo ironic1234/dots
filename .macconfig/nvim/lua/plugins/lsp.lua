@@ -39,7 +39,6 @@ return {
 				ensure_installed = {
 					"prettier",
 					"stylua",
-					"black",
 					"latexindent",
 				},
 			})
@@ -280,10 +279,8 @@ return {
 				formatters_by_ft = {
 					html = { "prettier" },
 					lua = { "stylua" },
-					python = { "black" },
 					css = { "prettier" },
 					tex = { "latexindent" },
-					svelte = { "prettier" },
 				},
 			})
 			-- Format command

@@ -6,6 +6,10 @@ return {
 			sections = {
 				lualine_x = { "encoding", "filetype" },
 			},
+			options = {
+				globalstatus = true,
+				theme = "catppuccin",
+			},
 		})
 	end,
 }
