@@ -23,7 +23,6 @@ return {
 					"ts_ls",
 					"lua_ls",
 					"jsonls",
-					"matlab_ls",
 					"ruff",
 				},
 			})
@@ -61,7 +60,6 @@ return {
 				"ts_ls",
 				"lua_ls",
 				"jsonls",
-				"matlab_ls",
 				"ruff",
 			}
 
