@@ -22,17 +22,26 @@ alt - l : yabai -m display --focus 1;
 alt - j : yabai -m display --focus 2;
 
 alt - k : kitty --single-instance; 
+alt - t : MOZ_DISABLE_SAFE_MODE_KEY=1 "/Applications/Firefox Nightly.app/Contents/MacOS/firefox" --new-tab about:newtab
 alt - w : skhd --key "cmd - w";
 alt - q : skhd --key "cmd - q";
 
-shift + alt - 1 : yabai -m window --space 1;
-shift + alt - 2 : yabai -m window --space 2;
-shift + alt - 3 : yabai -m window --space 3;
-shift + alt - 4 : yabai -m window --space 4; 
-alt - 1 : yabai -m space --focus 1
-alt - 2 : yabai -m space --focus 2
-alt - 3 : yabai -m space --focus 3
-alt - 4 : yabai -m space --focus 4
+shift + alt - 1: yabai -m window --space 1
+shift + alt - 2: yabai -m window --space 2
+shift + alt - 3: yabai -m window --space 3
+shift + alt - 4: yabai -m window --space 4
+shift + alt - 5: yabai -m window --space 5
+shift + alt - 6: yabai -m window --space 6
+shift + alt - 7: yabai -m window --space 7
+shift + alt - 8: yabai -m window --space 8
+alt - 1: yabai -m space --focus 1
+alt - 2: yabai -m space --focus 2
+alt - 3: yabai -m space --focus 3
+alt - 4: yabai -m space --focus 4
+alt - 5: yabai -m space --focus 5
+alt - 6: yabai -m space --focus 6
+alt - 7: yabai -m space --focus 7
+alt - 8: yabai -m space --focus 8
 
 alt - tab : yabai -m window --focus stack.next;
 shift + alt - tab : yabai -m window --focus stack.prev;
