@@ -75,7 +75,7 @@ return {
 				{ "│", "FloatBorder" },
 			}
 
-			local on_attach = function()
+			local on_attach = function(client, bufnr)
 				-- Override open_floating_preview for global hover settings
 				local orig_floating_preview = vim.lsp.util.open_floating_preview
 
