@@ -1,7 +1,7 @@
 return {
 	-- Mason setup
 	{
-		"williamboman/mason.nvim",
+		"mason-org/mason.nvim",
 		event = { "BufReadPre", "BufNewFile" },
 		config = function()
 			require("mason").setup()
@@ -9,8 +9,8 @@ return {
 	},
 	-- Mason LSP Config setup
 	{
-		"williamboman/mason-lspconfig.nvim",
-		dependencies = { "williamboman/mason.nvim" },
+		"mason-org/mason-lspconfig.nvim",
+		dependencies = { "mason-org/mason.nvim" },
 		event = { "BufReadPre", "BufNewFile" },
 		config = function()
 			require("mason-lspconfig").setup({
@@ -47,7 +47,7 @@ return {
 	-- LSP configuration
 	{
 		"neovim/nvim-lspconfig",
-		dependencies = { "williamboman/mason-lspconfig.nvim" },
+		dependencies = { "mason-org/mason-lspconfig.nvim" },
 		event = { "BufReadPre", "BufNewFile" },
 		config = function()
 			local lspconfig = require("lspconfig")

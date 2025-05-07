@@ -169,13 +169,6 @@ export FZF_DEFAULT_OPTS=" \
 --color=selected-bg:#45475a \
 --multi"
 
-export VULKAN_SDK=/Users/ronak/VulkanSDK/1.4.309.0/macOS
-export PATH=$VULKAN_SDK/bin:$PATH
-export DYLD_LIBRARY_PATH=$VULKAN_SDK/lib:$DYLD_LIBRARY_PATH
-export VK_ICD_FILENAMES=$VULKAN_SDK/share/vulkan/icd.d/MoltenVK_icd.json
-export VK_LAYER_PATH=$VULKAN_SDK/etc/vulkan/explicit_layer.d
-export PKG_CONFIG_PATH=$VULKAN_SDK/lib/pkgconfig:$PKG_CONFIG_PATH
-
 export VIRTUAL_ENV_DISABLE_PROMPT=1
 source ~/.venv/bin/activate
 
