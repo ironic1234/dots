@@ -7,27 +7,6 @@ return {
 			require("mason").setup()
 		end,
 	},
-	-- Mason LSP Config setup
-	{
-		"mason-org/mason-lspconfig.nvim",
-		dependencies = { "mason-org/mason.nvim" },
-		event = { "BufReadPre", "BufNewFile" },
-		config = function()
-			require("mason-lspconfig").setup({
-				ensure_installed = {
-					"pylsp",
-					"gopls",
-					"texlab",
-					"clangd",
-					"svelte",
-					"ts_ls",
-					"lua_ls",
-					"jsonls",
-					"ruff",
-				},
-			})
-		end,
-	},
 
 	-- Mason Conform setup
 	{
@@ -126,15 +105,7 @@ return {
 						settings = {
 							pylsp = {
 								plugins = {
-									jedi_completion = { enabled = true },
-									jedi_hover = { enabled = true },
-									jedi_references = { enabled = true },
-									jedi_signature_help = { enabled = true },
-									jedi_symbols = { enabled = true },
-
-									pyflakes = { enabled = false },
-									pycodestyle = { enabled = false },
-									mccabe = { enabled = false },
+									pyflakes = { enabled = true },
 								},
 							},
 						},
