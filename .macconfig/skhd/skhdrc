@@ -43,7 +43,4 @@ alt - 6: yabai -m space --focus 6
 alt - 7: yabai -m space --focus 7
 alt - 8: yabai -m space --focus 8
 
-alt - tab : yabai -m window --focus stack.next;
-shift + alt - tab : yabai -m window --focus stack.prev;
-
 alt - c : open /Applications/Neko.app
