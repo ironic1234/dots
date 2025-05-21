@@ -19,7 +19,6 @@ yabai -m config focus_follows_mouse autoraise
 
 yabai -m rule --add app="^System Settings$" manage=off
 yabai -m rule --add app="^Calculator$" manage=off
-yabai -m rule --add app="^mpv$" manage=off
 yabai -m rule --add app="^iPhone Mirroring$" manage=off
 
 yabai -m signal --add event=space_changed action="yabai -m window --focus \$(yabai -m query --windows --space | jq .[0].id)"
