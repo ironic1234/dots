@@ -25,6 +25,7 @@ alt - k : kitty --single-instance;
 alt - t : MOZ_DISABLE_SAFE_MODE_KEY=1 "/Applications/Firefox Nightly.app/Contents/MacOS/firefox" --new-tab about:newtab
 alt - w : skhd --key "cmd - w";
 alt - q : skhd --key "cmd - q";
+alt - r : open /Applications/mofi.app
 
 shift + alt - 1: yabai -m window --space 1
 shift + alt - 2: yabai -m window --space 2
