@@ -39,7 +39,6 @@ return {
 				"ts_ls",
 				"lua_ls",
 				"jsonls",
-				"ruff",
 			}
 
 			-- Specify how the border looks like
@@ -132,6 +131,7 @@ return {
 					})
 				end
 			end
+			vim.lsp.enable("ty")
 			vim.lsp.inlay_hint.enable()
 		end,
 	},
