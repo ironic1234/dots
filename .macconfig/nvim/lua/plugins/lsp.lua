@@ -39,6 +39,7 @@ return {
 				"ts_ls",
 				"lua_ls",
 				"jsonls",
+				"rust_analyzer",
 			}
 
 			-- Specify how the border looks like
