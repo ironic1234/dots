@@ -8,8 +8,7 @@ return {
 			prompt_message = function()
 				return "Autosave: saved at " .. vim.fn.strftime("%H:%M:%S")
 			end,
-			events = { "InsertLeave", "TextChanged" },
+			events = { "InsertLeave" },
 		})
 	end,
 }
-
