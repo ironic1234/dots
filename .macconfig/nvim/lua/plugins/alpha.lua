@@ -40,6 +40,7 @@ return {
 			dashboard.button("e", "  New file", "<cmd>ene<CR>"),
 			dashboard.button("SPC f f", "󰈞  Find file"),
 			dashboard.button("SPC f g", "󰊄  Live grep"),
+			dashboard.button("g", "  Git", "<cmd>Neogit<CR>"),
 			dashboard.button("u", "  Update plugins", "<cmd>Lazy sync<CR>"),
 			dashboard.button("q", "󰅚  Quit", "<cmd>qa<CR>"),
 		}
