@@ -30,6 +30,7 @@ return {
 					WinSeparator = { fg = colors.peach },
 					VertSplit = { fg = colors.peach },
 					HeaderGroup = { fg = colors.peach },
+					Pmenu = { bg = colors.base, fg = colors.peach },
 				}
 			end,
 		})
