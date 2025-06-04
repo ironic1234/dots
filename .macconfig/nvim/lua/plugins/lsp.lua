@@ -85,6 +85,9 @@ return {
 				vim.keymap.set("n", "ga", function()
 					vim.lsp.buf.code_action()
 				end)
+				vim.keymap.set("n", "<leader>l", function()
+					vim.lsp.inlay_hint.enable(true)
+				end)
 			end
 
 			-- Add border to the diagnostic popup window
@@ -132,8 +135,6 @@ return {
 					})
 				end
 			end
-			vim.lsp.enable("ty")
-			vim.lsp.inlay_hint.enable()
 		end,
 	},
 
