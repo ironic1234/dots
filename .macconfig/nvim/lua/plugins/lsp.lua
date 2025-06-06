@@ -86,7 +86,7 @@ return {
 					vim.lsp.buf.code_action()
 				end)
 				vim.keymap.set("n", "<leader>l", function()
-					vim.lsp.inlay_hint.enable(true)
+					vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled())
 				end)
 			end
 
