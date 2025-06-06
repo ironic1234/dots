@@ -26,7 +26,6 @@ return {
 	-- LSP configuration
 	{
 		"neovim/nvim-lspconfig",
-		dependencies = { "mason-org/mason-lspconfig.nvim" },
 		event = { "BufReadPre", "BufNewFile" },
 		config = function()
 			local lspconfig = require("lspconfig")
@@ -38,8 +37,8 @@ return {
 				"svelte",
 				"ts_ls",
 				"lua_ls",
-				"jsonls",
 				"rust_analyzer",
+				"ty",
 			}
 
 			-- Specify how the border looks like
@@ -129,6 +128,8 @@ return {
 							},
 						},
 					})
+				elseif server == "ty" then
+					vim.lsp.enable("ty")
 				else
 					lspconfig[server].setup({
 						on_attach = on_attach,
