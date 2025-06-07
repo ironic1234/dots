@@ -253,6 +253,7 @@ return {
 					lua = { "stylua" },
 					css = { "prettier" },
 					tex = { "latexindent" },
+					htmldjango = { "prettier" },
 				},
 			})
 			-- Format command
