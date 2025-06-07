@@ -1,0 +1,3 @@
+*.vim -linguist-detectable
+*.lua -linguist-detectable
+*.sh -linguist-detectable
