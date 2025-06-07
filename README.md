@@ -7,37 +7,36 @@ Text Editor of choice
 - Vim motions
 - [Catppuccin](https://github.com/catppuccin/nvim) Theme
 - [Plugins](https://github.com/folke/lazy.nvim) - Plugin manager
-        - [Autopairs](https://github.com/windwp/nvim-autopairs) - Automatically close braces, parentheses and quotes
-        - [Alpha](https://github.com/goolord/alpha-nvim) - Startup screen (catvim)
-        - [Autosave](https://github.com/0x00-ketsu/autosave.nvim) - Automatically save on edits
-        - [Autotag](https://github.com/windwp/nvim-ts-autotag) - Automatically close html tags
-        - [Highlight-Colors](https://github.com/brenoprata10/nvim-highlight-colors) - Highlights color values with corresponding color
-        - LSP - Language features like diagnostics, completion, and formatting
-               - [Mason](https://github.com/williamboman/mason.nvim) - Package manager
-               - [LSPConfig](https://github.com/neovim/nvim-lspconfig) - Configures servers for use with Neovim
-               - [Mason-Conform](https://github.com/zapling/mason-conform.nvim) - Integrate formatters with Mason
-               - [Conform](https://github.com/stevearc/conform.nvim) - Formatting text
-               - [Lazydev](https://github.com/folke/lazydev.nvim) - Proper lua integration for config and plugin development
-               - [nvim-cmp](https://github.com/hrsh7th/nvim-cmp) - Completion menu
-               - [LuaSnip](https://github.com/L3MON4D3/LuaSnip) - Snippets
-               - [Copilot](https://github.com/zbirenbaum/copilot.lua) - AI-powered suggestions
-               - [comment.nvim](https://github.com/numToStr/Comment.nvim) - Commenting
-        - [Lualine](https://github.com/nvim-lualine/lualine.nvim) - Better status bar
-        - [Oil](https://github.com/stevearc/oil.nvim) - File manager as a buffer
-        - [Telescope](https://github.com/nvim-telescope/telescope.nvim) - Fuzzy finding files
-        - [Treesitter](https://github.com/nvim-treesitter/nvim-treesitter) - Parses languages and provides syntax highlighting
-        - [Vimtex](https://github.com/lervag/vimtex) - Latex integration
-        - [Wit](https://github.com/Aliqyan-21/wit.nvim) - Google search from Neovim
-        - [DAP](https://github.com/mfussenegger/nvim-dap) - Debugging
-        - [Neogit](https://github.com/NeogitOrg/neogit) - Git interface
-        - [Live Preview](https://github.com/brianhuster/live-preview.nvim) - Render Markdown previews
-        - [Typr](https://github.com/nvzone/typr) - Typing practice
-        - [Undotree](https://github.com/jiaoshijie/undotree) - Better undo history
-        - [Go-Up](https://github.com/nullromo/go-up.nvim) - Move up directories quickly
-        - [LeetCode](https://github.com/kawre/leetcode.nvim) - Solve LeetCode problems
-        - [Duck](https://github.com/tamton-aquib/duck.nvim) - Rubber duck debugging
-        - [Zen Mode](https://github.com/folke/zen-mode.nvim) - Distraction-free mode
+    - [Autopairs](https://github.com/windwp/nvim-autopairs) - Automatically close braces, parentheses and quotes
+    - [Alpha](https://github.com/goolord/alpha-nvim) - Startup screen (catvim)
+    - [Autosave](https://github.com/0x00-ketsu/autosave.nvim) - Automatically save on edits
+    - [Autotag](https://github.com/windwp/nvim-ts-autotag) - Automatically close html tags
+    - [Highlight-Colors](https://github.com/brenoprata10/nvim-highlight-colors) - Highlights color values with corresponding color
+    - LSP - Language features like diagnostics, completion, and formatting
+        - [Mason](https://github.com/williamboman/mason.nvim) - Package manager
+        - [LSPConfig](https://github.com/neovim/nvim-lspconfig) - Configures servers for use with Neovim
+        - [Mason-Conform](https://github.com/zapling/mason-conform.nvim) - Integrate formatters with Mason
+        - [Conform](https://github.com/stevearc/conform.nvim) - Formatting text
+        - [Lazydev](https://github.com/folke/lazydev.nvim) - Proper lua integration for config and plugin development
+        - [nvim-cmp](https://github.com/hrsh7th/nvim-cmp) - Completion menu
+        - [LuaSnip](https://github.com/L3MON4D3/LuaSnip) - Snippets
         - [Copilot](https://github.com/zbirenbaum/copilot.lua) - AI-powered suggestions
+        - [comment.nvim](https://github.com/numToStr/Comment.nvim) - Commenting
+    - [Lualine](https://github.com/nvim-lualine/lualine.nvim) - Better status bar
+    - [Oil](https://github.com/stevearc/oil.nvim) - File manager as a buffer
+    - [Telescope](https://github.com/nvim-telescope/telescope.nvim) - Fuzzy finding files
+    - [Treesitter](https://github.com/nvim-treesitter/nvim-treesitter) - Parses languages and provides syntax highlighting
+    - [Vimtex](https://github.com/lervag/vimtex) - Latex integration
+    - [Wit](https://github.com/Aliqyan-21/wit.nvim) - Google search from Neovim
+    - [DAP](https://github.com/mfussenegger/nvim-dap) - Debugging
+    - [Neogit](https://github.com/NeogitOrg/neogit) - Git interface
+    - [Live Preview](https://github.com/brianhuster/live-preview.nvim) - Render Markdown previews
+    - [Typr](https://github.com/nvzone/typr) - Typing practice
+    - [Undotree](https://github.com/jiaoshijie/undotree) - Better undo history
+    - [Go-Up](https://github.com/nullromo/go-up.nvim) - Move up directories quickly
+    - [LeetCode](https://github.com/kawre/leetcode.nvim) - Solve LeetCode problems
+    - [Duck](https://github.com/tamton-aquib/duck.nvim) - Rubber duck debugging
+    - [Zen Mode](https://github.com/folke/zen-mode.nvim) - Distraction-free mode
 ## [Kitty](https://github.com/kovidgoyal/kitty)
 Terminal emulator of choice
 - [Catppuccin](https://github.com/catppuccin/kitty) Theme
