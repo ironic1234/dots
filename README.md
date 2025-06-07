@@ -1,6 +1,6 @@
 # Dotfiles
 
-This repository stores my personal configuration for macOS and Linux.
+This repository stores my personal configuration for macOS
 
 ## [Neovim](https://neovim.io/)
 Text Editor of choice
