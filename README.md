@@ -37,6 +37,7 @@ Text Editor of choice
     - [LeetCode](https://github.com/kawre/leetcode.nvim) - Solve LeetCode problems
     - [Duck](https://github.com/tamton-aquib/duck.nvim) - Rubber duck debugging
     - [Zen Mode](https://github.com/folke/zen-mode.nvim) - Distraction-free mode
+    - [Run](https://github.com/diniamo/run.nvim) - Code Runner
 ## [Kitty](https://github.com/kovidgoyal/kitty)
 Terminal emulator of choice
 - [Catppuccin](https://github.com/catppuccin/kitty) Theme
