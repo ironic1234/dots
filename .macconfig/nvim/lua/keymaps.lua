@@ -60,3 +60,14 @@ local dapui_ok, dapui = pcall(require, "dapui")
 if dapui_ok then
 	vim.keymap.set("n", "<leader>bu", dapui.toggle, {}) -- UI toggle
 end
+
+-- run.nvim keymaps
+local run = require("run")
+-- Runs the cached command
+vim.keymap.set("n", "<leader>ri", run.run)
+-- Prompts for a command, and overrides the cached one with it
+vim.keymap.set("n", "<leader>ro", function()
+	run.run(nil, true)
+end)
+-- Prompts for a command to run, without overriding
+vim.keymap.set("n", "<leader>rc", run.run_prompt)
