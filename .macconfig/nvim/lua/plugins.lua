@@ -35,6 +35,7 @@ require("lazy").setup({
 	require("plugins.leetcode"),
 	require("plugins.copilot"),
 	require("plugins.typr"),
+	require("plugins.run"),
 }, {
 	ui = {
 		border = "rounded",
