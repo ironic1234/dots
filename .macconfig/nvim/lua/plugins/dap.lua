@@ -30,6 +30,7 @@ return {
 				stopOnEntry = false,
 			},
 		}
+
 		dap.configurations.c = dap.configurations.cpp
 
 		-- Adapter: Python with debugpy using virtualenv Python
