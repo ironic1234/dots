@@ -2,6 +2,8 @@
 
 This repository stores my personal configuration for macOS
 
+![Screenshot](background/Screenshot.png)
+
 ## [Neovim](https://neovim.io/)
 Text Editor of choice
 - Vim motions
