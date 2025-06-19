@@ -22,7 +22,7 @@ alt - l : yabai -m display --focus 1;
 alt - j : yabai -m display --focus 2;
 
 alt - k : kitty --single-instance; 
-alt - t : MOZ_DISABLE_SAFE_MODE_KEY=1 "/Applications/Firefox Nightly.app/Contents/MacOS/firefox" --new-tab about:newtab
+alt - t : open "/Applications/Firefox Nightly.app"
 alt - w : skhd --key "cmd - w";
 alt - q : skhd --key "cmd - q";
 alt - r : open /Applications/mofi.app
