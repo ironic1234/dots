@@ -95,3 +95,6 @@ Browser of choice
 - [Dark Reader](https://github.com/darkreader/darkreader) - Turn any website into [catppuccin](https://github.com/catppuccin/dark-reader)
 - [Stylus](https://github.com/openstyles/stylus) - Userstyles = [catppuccin](https://github.com/catppuccin/userstyles) for many common websites
 - [UBlock Origin](https://github.com/gorhill/uBlock) - Adblocker that works
+## ![Mofi](https://github.com/ironic1234/mofi)
+- Spotlight replacement with theming
+- (it's mine)
