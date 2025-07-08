@@ -24,7 +24,7 @@ require("lazy").setup({
 	require("plugins.lualine"),
 	require("plugins.wit"),
 	require("plugins.oil"),
-	require("plugins.autotag"),
+	require("plugins.surround"),
 	require("plugins.live-preview"),
 	require("plugins.neogit"),
 	require("plugins.undotree"),
