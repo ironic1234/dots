@@ -13,6 +13,7 @@ vim.opt.shiftwidth = 4
 vim.opt.showmode = false
 vim.opt.laststatus = 3
 vim.opt.expandtab = true
+vim.opt.foldenable = false
 vim.loader.enable()
 vim.opt.clipboard:append("unnamedplus")
 
