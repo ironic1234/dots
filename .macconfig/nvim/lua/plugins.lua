@@ -33,7 +33,6 @@ require("lazy").setup({
 	require("plugins.duck"),
 	require("plugins.dap"),
 	require("plugins.leetcode"),
-	require("plugins.copilot"),
 	require("plugins.typr"),
 	require("plugins.run"),
 }, {
