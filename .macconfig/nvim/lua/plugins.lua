@@ -36,7 +36,6 @@ require("lazy").setup({
 	require("plugins.typr"),
 	require("plugins.run"),
 	require("plugins.ethersync"),
-	require("plugins.molten"),
 }, {
 	ui = {
 		border = "rounded",
