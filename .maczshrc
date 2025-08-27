@@ -200,3 +200,4 @@ export PATH="$BUN_INSTALL/bin:$PATH"
 export PATH="$PATH:/Users/ronak/.lmstudio/bin"
 # End of LM Studio CLI section
 
+export PATH="/opt/homebrew/opt/curl/bin:$PATH"
