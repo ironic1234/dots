@@ -103,6 +103,7 @@ source $ZSH/oh-my-zsh.sh
 # alias ohmyzsh="mate ~/.oh-my-zsh"
 
 alias mpv="openclose mpv"
+alias sioyek="openclose sioyek"
 alias kittycat="kitten icat"
 alias weather="curl wttr.in"
 alias maps="telnet mapscii.me"
