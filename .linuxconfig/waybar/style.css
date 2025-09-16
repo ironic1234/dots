@@ -1,0 +1,49 @@
+* {
+    border-radius: 5px;
+    font-family: "Hack Nerd Font";
+    font-weight: bold;
+    font-size: 14px;
+}
+
+#waybar {
+    background-color: rgba(0, 0, 0, 0);
+}
+
+#workspaces button,
+#clock,
+#pulseaudio,
+#battery {
+    padding: 0 5px;
+    color: #fab387; 
+    font-family: "Hack Nerd Font"
+}
+
+#window {
+    padding: 0 5px;
+    color: #fab387;
+    font-family: "Hack Nerd Font", "Noto Fonts Emoji";
+}
+
+#workspaces button span,
+#window span,
+#clock span,
+#pulseaudio span,
+#battery span {
+    font-size: 17px; 
+    padding: 0 4px; 
+    color: #fab387; 
+    background-color: transparent;
+}
+
+#workspaces button.active {
+    background-color: transparent;
+    border: 2px solid #fab387;
+    border-radius: 5px;
+}
+
+#workspaces button:hover {
+    box-shadow: none;
+    text-shadow: none;
+    background: none;
+    transition: none;
+}
