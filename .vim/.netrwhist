@@ -1,9 +1,0 @@
-let g:netrw_dirhistmax  =10
-let g:netrw_dirhistcnt =7
-let g:netrw_dirhist_7='/home/shay/a/jain717/assignments/practica2/inputs/search'
-let g:netrw_dirhist_6='/home/shay/a/jain717/.vim/plugin'
-let g:netrw_dirhist_5='/home/shay/a/jain717/.vim'
-let g:netrw_dirhist_4='/home/shay/a/jain717'
-let g:netrw_dirhist_3='/home/shay/a/jain717/Documents'
-let g:netrw_dirhist_2='/home/shay/a/jain717'
-let g:netrw_dirhist_1='/home/shay/a/jain717/assignments'
