@@ -159,7 +159,6 @@ eval "$(fzf --zsh)"
 # Created by `pipx` on 2024-04-18 22:16:43
 export PATH="$PATH:/Users/ronak/.local/bin"
 export PATH="$PATH:/Library/Developer/CommandLineTools/usr/bin"
-export PATH=$PATH:/Users/ronak/.spicetify
 export PATH=/opt/homebrew/opt/python/libexec/bin:$PATH
 export LS_COLORS="$(vivid generate catppuccin-mocha)"
 export GOPATH="/Users/ronak/coding/go"
@@ -202,3 +201,4 @@ export PATH="$PATH:/Users/ronak/.lmstudio/bin"
 # End of LM Studio CLI section
 
 export PATH="/opt/homebrew/opt/curl/bin:$PATH"
+export PATH="/Users/ronak/.cargo/bin:$PATH"

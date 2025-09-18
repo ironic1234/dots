@@ -28,7 +28,6 @@ return {
 		"neovim/nvim-lspconfig",
 		event = { "BufReadPre", "BufNewFile" },
 		config = function()
-			local lspconfig = require("lspconfig")
 			local servers = {
 				"pylsp",
 				"gopls",
@@ -102,7 +101,7 @@ return {
 
 			for _, server in ipairs(servers) do
 				if server == "pylsp" then
-					lspconfig[server].setup({
+					vim.lsp.config.pylsp = {
 						on_attach = on_attach,
 						settings = {
 							pylsp = {
@@ -111,9 +110,10 @@ return {
 								},
 							},
 						},
-					})
+					}
+					vim.lsp.enable("pylsp")
 				elseif server == "lua_ls" then
-					lspconfig[server].setup({
+					vim.lsp.config.lua_ls = {
 						on_attach = on_attach,
 						settings = {
 							Lua = {
@@ -123,17 +123,19 @@ return {
 									paramType = true, -- Show inferred parameter types
 									paramName = "All", -- Show parameter names for all function calls
 									semicolon = "Disable", -- Disable semicolon hints
-									arrayIndex = "Enable", -- Disable array index hints
+									arrayIndex = "Enable", -- Enable array index hints
 								},
 							},
 						},
-					})
+					}
+					vim.lsp.enable("lua_ls")
 				elseif server == "ty" then
 					vim.lsp.enable("ty")
 				else
-					lspconfig[server].setup({
+					vim.lsp.config[server] = {
 						on_attach = on_attach,
-					})
+					}
+					vim.lsp.enable(server)
 				end
 			end
 		end,
