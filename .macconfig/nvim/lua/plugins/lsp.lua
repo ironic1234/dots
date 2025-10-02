@@ -1,28 +1,4 @@
 return {
-	-- Mason setup
-	{
-		"mason-org/mason.nvim",
-		event = { "BufReadPre", "BufNewFile" },
-		config = function()
-			require("mason").setup()
-		end,
-	},
-
-	-- Mason Conform setup
-	{
-		"zapling/mason-conform.nvim",
-		event = { "BufReadPre", "BufNewFile" },
-		config = function()
-			require("mason-conform").setup({
-				ensure_installed = {
-					"prettier",
-					"stylua",
-					"latexindent",
-				},
-			})
-		end,
-	},
-
 	-- LSP configuration
 	{
 		"neovim/nvim-lspconfig",
@@ -256,6 +232,9 @@ return {
 					css = { "prettier" },
 					tex = { "latexindent" },
 					htmldjango = { "prettier" },
+					c = { "clang-format" },
+					cpp = { "clang-format" },
+					rust = { "rustfmt" },
 				},
 			})
 			-- Format command
