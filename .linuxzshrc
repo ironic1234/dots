@@ -105,3 +105,5 @@ source $ZSH/oh-my-zsh.sh
 
 export PATH=$PATH:/home/ronak/.cargo/bin
 alias ls="eza --icons=always --hyperlink -a"
+export VIRTUAL_ENV_DISABLE_PROMPT=1
+source /home/ronak/.venv/bin/activate
