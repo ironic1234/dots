@@ -11,8 +11,8 @@
     "hyprland/window"
   ],
   "modules-right": [
-    "pulseaudio",
     "battery",
+    "pulseaudio",
     "clock"
   ],
   "hyprland/workspaces": {
