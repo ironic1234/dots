@@ -104,7 +104,24 @@ source $ZSH/oh-my-zsh.sh
 # alias ohmyzsh="mate ~/.oh-my-zsh"
 
 export PATH=$PATH:/home/ronak/.cargo/bin
+export PATH="/home/ronak/.local/bin:$PATH"
+
 alias ls="eza --icons=always --hyperlink -a"
 alias windows="systemctl reboot --boot-loader-entry=auto-windows"
+alias kittycat="kitten icat"
+alias weather="curl wttr.in"
+alias maps="telnet mapscii.me"
+alias ssh="kitten ssh"
+alias krabby="clear && krabby name"
+alias catvim="nvim"
+alias ls="eza --icons=always --hyperlink -a"
+alias :q="exit"
+alias :qa="killall kitty"
+alias code="code-insiders"
+alias cv="catvim"
+alias cdg='cd $(git rev-parse --show-toplevel)'
+
+export LS_COLORS="$(vivid generate catppuccin-mocha)"
+
 export VIRTUAL_ENV_DISABLE_PROMPT=1
 source /home/ronak/.venv/bin/activate
