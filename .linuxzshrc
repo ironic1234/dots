@@ -105,5 +105,6 @@ source $ZSH/oh-my-zsh.sh
 
 export PATH=$PATH:/home/ronak/.cargo/bin
 alias ls="eza --icons=always --hyperlink -a"
+alias windows="systemctl reboot --boot-loader-entry=auto-windows"
 export VIRTUAL_ENV_DISABLE_PROMPT=1
 source /home/ronak/.venv/bin/activate
