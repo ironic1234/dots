@@ -105,6 +105,7 @@ source $ZSH/oh-my-zsh.sh
 
 export PATH=$PATH:/home/ronak/.cargo/bin
 export PATH="/home/ronak/.local/bin:$PATH"
+export PATH="/home/ronak/.local/share/gem/ruby/3.4.0/bin:$PATH"
 
 alias ls="eza --icons=always --hyperlink -a"
 alias windows="systemctl reboot --boot-loader-entry=auto-windows"
@@ -117,7 +118,7 @@ alias catvim="nvim"
 alias ls="eza --icons=always --hyperlink -a"
 alias :q="exit"
 alias :qa="killall kitty"
-alias code="code-insiders"
+alias code="code-insiders --ozone-platform=wayland"
 alias cv="catvim"
 alias cdg='cd $(git rev-parse --show-toplevel)'
 
@@ -125,3 +126,9 @@ export LS_COLORS="$(vivid generate catppuccin-mocha)"
 
 export VIRTUAL_ENV_DISABLE_PROMPT=1
 source /home/ronak/.venv/bin/activate
+
+PATH="/home/ronak/perl5/bin${PATH:+:${PATH}}"; export PATH;
+PERL5LIB="/home/ronak/perl5/lib/perl5${PERL5LIB:+:${PERL5LIB}}"; export PERL5LIB;
+PERL_LOCAL_LIB_ROOT="/home/ronak/perl5${PERL_LOCAL_LIB_ROOT:+:${PERL_LOCAL_LIB_ROOT}}"; export PERL_LOCAL_LIB_ROOT;
+PERL_MB_OPT="--install_base \"/home/ronak/perl5\""; export PERL_MB_OPT;
+PERL_MM_OPT="INSTALL_BASE=/home/ronak/perl5"; export PERL_MM_OPT;
