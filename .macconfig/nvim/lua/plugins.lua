@@ -35,7 +35,7 @@ require("lazy").setup({
 	require("plugins.leetcode"),
 	require("plugins.typr"),
 	require("plugins.run"),
-	require("plugins.ethersync"),
+	require("plugins.teamtype"),
 	require("plugins.cord"),
 }, {
 	ui = {
