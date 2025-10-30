@@ -28,7 +28,7 @@ require("lazy").setup({
 	require("plugins.zen-mode"),
 	require("plugins.go-up"),
 	require("plugins.dap"),
-	require("plugins.ethersync"),
+	require("plugins.teamtype"),
 }, {
 	ui = {
 		border = "rounded",
