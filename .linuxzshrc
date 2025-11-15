@@ -132,3 +132,7 @@ PERL5LIB="/home/ronak/perl5/lib/perl5${PERL5LIB:+:${PERL5LIB}}"; export PERL5LIB
 PERL_LOCAL_LIB_ROOT="/home/ronak/perl5${PERL_LOCAL_LIB_ROOT:+:${PERL_LOCAL_LIB_ROOT}}"; export PERL_LOCAL_LIB_ROOT;
 PERL_MB_OPT="--install_base \"/home/ronak/perl5\""; export PERL_MB_OPT;
 PERL_MM_OPT="INSTALL_BASE=/home/ronak/perl5"; export PERL_MM_OPT;
+
+if [[ -z $DISPLAY && $(tty) = /dev/tty1 ]]; then
+    exec uwsm start select
+fi
