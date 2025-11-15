@@ -61,13 +61,8 @@ if dapui_ok then
 	vim.keymap.set("n", "<leader>bu", dapui.toggle, {}) -- UI toggle
 end
 
--- run.nvim keymaps
-local run = require("run")
--- Runs the cached command
-vim.keymap.set("n", "<leader>ri", run.run)
--- Prompts for a command, and overrides the cached one with it
-vim.keymap.set("n", "<leader>ro", function()
-	run.run(nil, true)
-end)
--- Prompts for a command to run, without overriding
-vim.keymap.set("n", "<leader>rc", run.run_prompt)
+-- Dropbar
+local dropbar_api = require("dropbar.api")
+vim.keymap.set("n", "<leader>;", dropbar_api.pick, { desc = "Pick symbols in winbar" })
+vim.keymap.set("n", "[;", dropbar_api.goto_context_start, { desc = "Go to start of current context" })
+vim.keymap.set("n", "];", dropbar_api.select_next_context, { desc = "Select next context" })
