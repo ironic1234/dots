@@ -29,7 +29,7 @@ require("lazy").setup({
 	require("plugins.go-up"),
 	require("plugins.dap"),
 	require("plugins.teamtype"),
-    require("plugins.dropbar"),
+	require("plugins.dropbar"),
 }, {
 	ui = {
 		border = "rounded",
