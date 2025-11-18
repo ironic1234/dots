@@ -38,28 +38,7 @@ return {
 					return orig_floating_preview(contents, syntax, opts, ...)
 				end
 
-				vim.keymap.set("n", "gd", function()
-					vim.lsp.buf.definition()
-				end)
-				vim.keymap.set("n", "gi", function()
-					vim.lsp.buf.implementation()
-				end)
-				vim.keymap.set("n", "gh", function()
-					vim.lsp.buf.hover()
-				end)
-				vim.keymap.set("n", "gD", function()
-					vim.diagnostic.open_float()
-				end)
-				vim.keymap.set("n", "gr", function()
-					vim.lsp.buf.references()
-				end)
-				vim.keymap.set("n", "ga", function()
-					vim.lsp.buf.code_action()
-				end)
 				vim.lsp.inlay_hint.enable(true)
-				vim.keymap.set("n", "<leader>l", function()
-					vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled())
-				end)
 			end
 
 			-- Add border to the diagnostic popup window
