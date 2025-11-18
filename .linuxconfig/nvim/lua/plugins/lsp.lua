@@ -56,6 +56,7 @@ return {
 				vim.keymap.set("n", "ga", function()
 					vim.lsp.buf.code_action()
 				end)
+				vim.lsp.inlay_hint.enable(true)
 				vim.keymap.set("n", "<leader>l", function()
 					vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled())
 				end)
@@ -63,9 +64,8 @@ return {
 
 			-- Add border to the diagnostic popup window
 			vim.diagnostic.config({
-				virtual_text = {
-					prefix = "■ ", -- Could be '●', '▎', 'x', '■', , 
-				},
+				virtual_text = false,
+				virtual_lines = true,
 				float = {
 					---@diagnostic disable-next-line: assign-type-mismatch
 					border = border,
@@ -122,6 +122,13 @@ return {
 				{ path = "luvit-meta/library", words = { "vim%.uv" } },
 			},
 		},
+	},
+
+	{
+		"https://git.sr.ht/~whynothugo/lsp_lines.nvim",
+		config = function()
+			require("lsp_lines").setup()
+		end,
 	},
 
 	{
