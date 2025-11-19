@@ -41,7 +41,7 @@ return {
 					return orig_floating_preview(contents, syntax, opts, ...)
 				end
 
-				vim.inlay_hint.enable(true)
+				vim.lsp.inlay_hint.enable(true)
 			end
 
 			-- Add border to the diagnostic popup window
