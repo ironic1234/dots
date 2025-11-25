@@ -6,6 +6,7 @@ return {
 			"nvim-tree/nvim-web-devicons",
 			"nvim-telescope/telescope-ui-select.nvim",
 		},
+		event = "VeryLazy",
 		config = function()
 			require("telescope").setup({
 				extensions = {

@@ -123,6 +123,7 @@ return {
 	{
 		"folke/lazydev.nvim",
 		ft = "lua",
+		event = { "BufReadPre", "BufNewFile" },
 		opts = {
 			library = {
 				{ path = "luvit-meta/library", words = { "vim%.uv" } },
@@ -132,6 +133,7 @@ return {
 
 	{
 		"https://git.sr.ht/~whynothugo/lsp_lines.nvim",
+		event = { "BufReadPre", "BufNewFile" },
 		config = function()
 			require("lsp_lines").setup()
 		end,
@@ -139,6 +141,7 @@ return {
 
 	{
 		"Bilal2453/luvit-meta",
+		event = { "BufReadPre", "BufNewFile" },
 		lazy = true,
 	},
 
@@ -232,7 +235,8 @@ return {
 
 	{
 		"iurimateus/luasnip-latex-snippets.nvim",
-		requires = { "L3MON4D3/LuaSnip" },
+		event = { "BufReadPre", "BufNewFile" },
+		dependencies = { "L3MON4D3/LuaSnip" },
 		config = function()
 			require("luasnip-latex-snippets").setup({ use_treesitter = true })
 			require("luasnip").config.setup({ enable_autosnippets = true })
