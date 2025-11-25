@@ -12,6 +12,9 @@ return {
 					return false
 				end,
 			},
+			math = {
+				enabled = false,
+			},
 		},
 	},
 }
