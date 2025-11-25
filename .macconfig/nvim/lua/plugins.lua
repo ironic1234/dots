@@ -35,6 +35,7 @@ require("lazy").setup({
 	require("plugins.teamtype"),
 	require("plugins.cord"),
 	require("plugins.dropbar"),
+	require("plugins.snacks"),
 }, {
 	ui = {
 		border = "rounded",
