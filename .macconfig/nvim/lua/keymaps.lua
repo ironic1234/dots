@@ -99,3 +99,8 @@ vim.api.nvim_create_autocmd("FileType", {
 		require("mdmath").enable()
 	end,
 })
+
+-- Toggle Checkbox
+vim.keymap.set({ "n", "i" }, "<A-'>", function()
+	require("toggle-checkbox").toggle()
+end)
