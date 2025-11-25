@@ -230,6 +230,15 @@ return {
 		dependencies = { "rafamadriz/friendly-snippets" },
 	},
 
+	{
+		"iurimateus/luasnip-latex-snippets.nvim",
+		requires = { "L3MON4D3/LuaSnip" },
+		config = function()
+			require("luasnip-latex-snippets").setup({ use_treesitter = true })
+			require("luasnip").config.setup({ enable_autosnippets = true })
+		end,
+	},
+
 	-- Auto-format and user command setup
 	{
 		"stevearc/conform.nvim",
