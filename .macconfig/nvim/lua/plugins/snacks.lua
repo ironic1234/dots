@@ -6,6 +6,8 @@ return {
 		image = {
 			enabled = true,
 			doc = {
+				inline = true,
+				float = false,
 				conceal = function()
 					return false
 				end,

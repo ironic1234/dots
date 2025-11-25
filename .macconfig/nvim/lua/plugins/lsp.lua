@@ -14,6 +14,7 @@ return {
 				"lua_ls",
 				"rust_analyzer",
 				"ty",
+				"texlab",
 			}
 
 			-- Specify how the border looks like
@@ -86,6 +87,29 @@ return {
 					vim.lsp.enable("lua_ls")
 				elseif server == "ty" then
 					vim.lsp.enable("ty")
+				elseif server == "texlab" then
+					vim.lsp.config.texlab = {
+						on_attach = on_attach,
+						settings = {
+							texlab = {
+								build = {
+									onSave = true,
+									forwardSearchAfter = true,
+								},
+								forwardSearch = {
+									executable = "displayline",
+									args = {
+										"-g",
+										"-r",
+										"%l",
+										"%p",
+										"%f",
+									},
+								},
+							},
+						},
+					}
+					vim.lsp.enable("texlab")
 				else
 					vim.lsp.config[server] = {
 						on_attach = on_attach,

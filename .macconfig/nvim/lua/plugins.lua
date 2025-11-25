@@ -20,7 +20,6 @@ require("lazy").setup({
 	require("plugins.lsp"),
 	require("plugins.highlight-colors"),
 	require("plugins.alpha"),
-	require("plugins.vimtex"),
 	require("plugins.lualine"),
 	require("plugins.oil"),
 	require("plugins.surround"),
