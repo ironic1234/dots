@@ -5,7 +5,7 @@ return {
 		local configs = require("nvim-treesitter.configs")
 
 		configs.setup({
-			highlight = { enable = true, disable = { "latex" } },
+			highlight = { enable = true },
 			indent = { enable = true },
 		})
 	end,
