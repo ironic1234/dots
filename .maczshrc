@@ -172,8 +172,6 @@ export FZF_DEFAULT_OPTS=" \
 export VIRTUAL_ENV_DISABLE_PROMPT=1
 source ~/.venv/bin/activate
 
-export STM32CubeMX_PATH=/Applications/STMicroelectronics/STM32CubeMX.app/Contents/Resources
-
 cd ~
 
 # The following lines have been added by Docker Desktop to enable Docker CLI completions.
@@ -186,16 +184,17 @@ bindkey -v
 
 ZSH_AUTOSUGGEST_STRATEGY=(completion)
 
-# bun completions
-[ -s "/Users/ronak/.bun/_bun" ] && source "/Users/ronak/.bun/_bun"
-
 # bun
+[ -s "/Users/ronak/.bun/_bun" ] && source "/Users/ronak/.bun/_bun"
 export BUN_INSTALL="$HOME/.bun"
 export PATH="$BUN_INSTALL/bin:$PATH"
 
-# Added by LM Studio CLI (lms)
-export PATH="$PATH:/Users/ronak/.lmstudio/bin"
-# End of LM Studio CLI section
-
+# curl
 export PATH="/opt/homebrew/opt/curl/bin:$PATH"
+
+# cargo
 export PATH="/Users/ronak/.cargo/bin:$PATH"
+
+# ruby
+export PATH="/opt/homebrew/opt/ruby/bin:$PATH"
+export PATH="/opt/homebrew/lib/ruby/gems/3.4.0/bin:$PATH"
