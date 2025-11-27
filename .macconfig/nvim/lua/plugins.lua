@@ -30,6 +30,7 @@ require("lazy").setup({
 	require("plugins.dropbar"),
 	require("plugins.snacks"),
 	require("plugins.markdown"),
+	require("plugins.zen-mode"),
 }, {
 	ui = {
 		border = "rounded",
