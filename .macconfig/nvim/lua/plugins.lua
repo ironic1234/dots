@@ -31,6 +31,7 @@ require("lazy").setup({
 	require("plugins.snacks"),
 	require("plugins.markdown"),
 	require("plugins.zen-mode"),
+	require("plugins.fidget"),
 }, {
 	ui = {
 		border = "rounded",
