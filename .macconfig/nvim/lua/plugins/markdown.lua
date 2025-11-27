@@ -15,4 +15,7 @@ return {
 	{
 		"opdavies/toggle-checkbox.nvim",
 	},
+	{
+		"bullets-vim/bullets.vim",
+	},
 }
