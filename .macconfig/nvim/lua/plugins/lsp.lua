@@ -10,11 +10,11 @@ return {
 				"texlab",
 				"clangd",
 				"svelte",
-				"ts_ls",
 				"lua_ls",
 				"rust_analyzer",
 				"ty",
 				"texlab",
+				"tsgo",
 			}
 
 			-- Specify how the border looks like
@@ -85,8 +85,6 @@ return {
 						},
 					}
 					vim.lsp.enable("lua_ls")
-				elseif server == "ty" then
-					vim.lsp.enable("ty")
 				elseif server == "texlab" then
 					vim.lsp.config.texlab = {
 						on_attach = on_attach,
