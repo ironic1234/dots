@@ -7,7 +7,6 @@ return {
 	config = function()
 		local dap = require("dap")
 
-		-- Adapter: lldb-dap (from Homebrew LLVM)
 		dap.adapters["lldb-dap"] = {
 			type = "executable",
 			command = vim.fn.exepath("lldb-dap"),
@@ -36,8 +35,7 @@ return {
 		-- Adapter: Python with debugpy using virtualenv Python
 		dap.adapters.python = {
 			type = "executable",
-			command = vim.fn.getenv("VIRTUAL_ENV") and (vim.fn.getenv("VIRTUAL_ENV") .. "/bin/python")
-				or vim.fn.exepath("python3"),
+			command = vim.fn.exepath("python3"),
 			args = { "-m", "debugpy.adapter" },
 		}
 
@@ -48,13 +46,7 @@ return {
 				name = "Launch Python File",
 				program = "${file}",
 				pythonPath = function()
-					-- Use VIRTUAL_ENV/bin/python if it exists
-					local venv = os.getenv("VIRTUAL_ENV")
-					if venv then
-						return venv .. "/bin/python"
-					else
-						return vim.fn.exepath("python3") or "python3"
-					end
+					return vim.fn.exepath("python3") or "python3"
 				end,
 			},
 		}
