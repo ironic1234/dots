@@ -4,6 +4,7 @@ return {
 		"nvim-neotest/nvim-nio",
 		"rcarriga/nvim-dap-ui",
 	},
+	event = { "BufEnter" },
 	config = function()
 		local dap = require("dap")
 
