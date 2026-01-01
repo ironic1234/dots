@@ -32,6 +32,7 @@ require("lazy").setup({
 	require("plugins.markdown"),
 	require("plugins.zen-mode"),
 	require("plugins.fidget"),
+	require("plugins.whichkey"),
 }, {
 	ui = {
 		border = "rounded",
