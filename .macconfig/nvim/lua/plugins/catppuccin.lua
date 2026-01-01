@@ -5,14 +5,7 @@ return {
 	config = function()
 		require("catppuccin").setup({
 			transparent_background = true,
-			styles = {
-				comments = { "italic" },
-				conditionals = { "italic" },
-				loops = { "italic" },
-				functions = { "italic" },
-				properties = { "italic" },
-				types = { "italic" },
-			},
+			no_italic = true,
 			integrations = {
 				treesitter = true,
 				alpha = true,
