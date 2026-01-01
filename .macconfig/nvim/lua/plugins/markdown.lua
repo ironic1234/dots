@@ -1,21 +1,21 @@
 return {
 	{
 		"MeanderingProgrammer/render-markdown.nvim",
-		event = "BufReadPre",
+		ft = { "markdown" },
 		dependencies = { "nvim-treesitter/nvim-treesitter", "nvim-tree/nvim-web-devicons" },
 		opts = {},
 	},
 	{
 		"Thiago4532/mdmath.nvim",
-		event = "BufReadPre",
+		ft = { "markdown", "tex" },
 		dependencies = {
 			"nvim-treesitter/nvim-treesitter",
 		},
+		opts = {},
 	},
 	{
-		"opdavies/toggle-checkbox.nvim",
-	},
-	{
-		"bullets-vim/bullets.vim",
+		"yousefhadder/markdown-plus.nvim",
+		ft = "markdown",
+		opts = {},
 	},
 }
