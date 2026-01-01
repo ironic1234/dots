@@ -17,18 +17,6 @@ return {
 				"tsgo",
 			}
 
-			-- Specify how the border looks like
-			local border = {
-				{ "┌", "FloatBorder" },
-				{ "─", "FloatBorder" },
-				{ "┐", "FloatBorder" },
-				{ "│", "FloatBorder" },
-				{ "┘", "FloatBorder" },
-				{ "─", "FloatBorder" },
-				{ "└", "FloatBorder" },
-				{ "│", "FloatBorder" },
-			}
-
 			local on_attach = function()
 				-- Override open_floating_preview for global hover settings
 				local orig_floating_preview = vim.lsp.util.open_floating_preview
@@ -36,7 +24,6 @@ return {
 				---@diagnostic disable-next-line: duplicate-set-field
 				vim.lsp.util.open_floating_preview = function(contents, syntax, opts, ...)
 					opts = opts or {}
-					opts.border = border -- Set border style
 					opts.max_width = 80 -- Set max width
 					opts.max_height = 20 -- Set max height
 					return orig_floating_preview(contents, syntax, opts, ...)
@@ -45,14 +32,9 @@ return {
 				vim.lsp.inlay_hint.enable(true)
 			end
 
-			-- Add border to the diagnostic popup window
 			vim.diagnostic.config({
 				virtual_text = false,
 				virtual_lines = true,
-				float = {
-					---@diagnostic disable-next-line: assign-type-mismatch
-					border = border,
-				},
 			})
 
 			for _, server in ipairs(servers) do
@@ -159,16 +141,6 @@ return {
 			local cmp_autopairs = require("nvim-autopairs.completion.cmp")
 			local cmp = require("cmp")
 			cmp.event:on("confirm_done", cmp_autopairs.on_confirm_done())
-			cmp.event:on("entry_change", function(event)
-				local entry = event.entry
-				if entry.source.name == "copilot" then
-					vim.lsp.util.open_floating_preview({ entry.completion_item.label }, "plaintext", {
-						border = "rounded",
-						focusable = false,
-						close_events = { "BufLeave", "InsertLeave", "CompletionDone" },
-					})
-				end
-			end)
 			cmp.setup({
 				preselect = cmp.PreselectMode.None,
 				snippet = {

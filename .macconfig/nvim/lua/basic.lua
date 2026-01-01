@@ -16,6 +16,7 @@ vim.opt.expandtab = true
 vim.opt.foldenable = false
 vim.loader.enable()
 vim.opt.clipboard:append("unnamedplus")
+vim.opt.winborder = "rounded"
 
 vim.g.have_nerd_font = true
 
