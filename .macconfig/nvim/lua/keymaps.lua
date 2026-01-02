@@ -21,11 +21,6 @@ vim.keymap.set("n", "<leader>fs", "<Cmd>Lazy profile<CR>", { desc = "Show Lazy p
 -- Go back to previous file
 vim.keymap.set("n", "<leader>gb", "<Cmd>e#<CR>", { desc = "Go to previous buffer" })
 
--- Undotree
-vim.keymap.set("n", "<leader>u", function()
-	require("undotree").toggle()
-end, { desc = "Toggle Undotree" })
-
 -- Duck
 vim.keymap.set("n", "<leader>cc", function()
 	require("duck").hatch("🐈")

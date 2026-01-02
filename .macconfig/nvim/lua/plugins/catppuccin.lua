@@ -13,6 +13,7 @@ return {
 				neotree = true,
 				cmp = true,
 				dap = true,
+				which_key = true,
 			},
 			custom_highlights = function(colors)
 				return {
