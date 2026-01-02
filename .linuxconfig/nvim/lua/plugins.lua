@@ -14,7 +14,7 @@ vim.opt.rtp:prepend(lazypath)
 require("lazy").setup({
 	require("plugins.autopairs"),
 	require("plugins.autosave"),
-	require("plugins.catppuccin"),
+	require("plugins.colors"),
 	require("plugins.telescope"),
 	require("plugins.treesitter"),
 	require("plugins.lsp"),
@@ -31,6 +31,7 @@ require("lazy").setup({
 	require("plugins.teamtype"),
 	require("plugins.dropbar"),
 	require("plugins.fidget"),
+	require("plugins.whichkey"),
 }, {
 	ui = {
 		border = "rounded",
