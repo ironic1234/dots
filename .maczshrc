@@ -117,6 +117,7 @@ alias code="code-insiders"
 alias cv="catvim"
 alias bu="brew update && brew upgrade --greedy"
 alias cdg='cd $(git rev-parse --show-toplevel)'
+alias tasks="taskwarrior-tui"
 
 # Multiple Homebrews on Apple Silicon
 if [ "$(arch)" = "arm64" ]; then
