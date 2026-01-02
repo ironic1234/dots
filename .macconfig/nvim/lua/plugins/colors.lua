@@ -19,6 +19,10 @@ return {
 				},
 				custom_highlights = function(colors)
 					return {
+						NormalFloat = { bg = "NONE" },
+						FloatBorder = { bg = "NONE" },
+						FloatTitle = { bg = "NONE" },
+
 						["@punctuation.bracket"] = { fg = colors.flamingo },
 						["@punctuation.delimiter"] = { fg = colors.flamingo },
 						["@punctuation.special"] = { fg = colors.flamingo },

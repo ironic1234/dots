@@ -21,17 +21,6 @@ vim.keymap.set("n", "<leader>fs", "<Cmd>Lazy profile<CR>", { desc = "Show Lazy p
 -- Go back to previous file
 vim.keymap.set("n", "<leader>gb", "<Cmd>e#<CR>", { desc = "Go to previous buffer" })
 
--- Duck
-vim.keymap.set("n", "<leader>cc", function()
-	require("duck").hatch("🐈")
-end, { desc = "Hatch a duck (cat)" })
-vim.keymap.set("n", "<leader>ck", function()
-	require("duck").cook()
-end, { desc = "Cook a duck" })
-vim.keymap.set("n", "<leader>ca", function()
-	require("duck").cook_all()
-end, { desc = "Cook all ducks" })
-
 local dap = require("dap")
 
 -- DAP: Basic controls
