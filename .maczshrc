@@ -118,6 +118,7 @@ alias cv="catvim"
 alias bu="brew update && brew upgrade --greedy"
 alias cdg='cd $(git rev-parse --show-toplevel)'
 alias tasks="taskwarrior-tui"
+alias tasksync='tw_gcal_sync --all -c "Things" --google-secret /Users/ronak/keys/client_secret_366941698378-ov6nd5c0kf5jhim9eceo6oh60ke0c0uj.apps.googleusercontent.com.json'
 
 # Multiple Homebrews on Apple Silicon
 if [ "$(arch)" = "arm64" ]; then
