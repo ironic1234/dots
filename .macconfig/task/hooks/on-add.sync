@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+export PATH=$PATH:/opt/homebrew/bin
+
+/Users/ronak/.local/bin/tw_gcal_sync --all -c "Things" --google-secret /Users/ronak/Downloads/client_secret_366941698378-ov6nd5c0kf5jhim9eceo6oh60ke0c0uj.apps.googleusercontent.com.json >> /Users/ronak/tw_sync.log 2>&1
