@@ -154,22 +154,6 @@ EOF
     bash
 }
 
-task() {
-    command task "$@"
-    local status=$?
-
-    # Only sync if the command was a "write" operation and it succeeded
-    if [[ $status -eq 0 && "$1" =~ ^(add|mod|modify|done|delete|append|prepend|annotate|stop|start)$ ]]; then
-        (
-            /Users/ronak/.local/bin/tw_gcal_sync --all -c "Things" \
-            --google-secret /Users/ronak/Downloads/client_secret_366941698378-ov6nd5c0kf5jhim9eceo6oh60ke0c0uj.apps.googleusercontent.com.json \
-            >> /Users/ronak/tw_sync.log 2>&1
-        ) &!
-    fi
-
-    return $status
-}
-
 eval "$(fzf --zsh)"
 
 # Created by `pipx` on 2024-04-18 22:16:43
