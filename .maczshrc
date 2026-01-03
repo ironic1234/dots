@@ -134,25 +134,23 @@ openclose() {
 }
 
 
-devbox() {
-  local IMAGE_NAME="my-dev-env"
+# Usage: "tnext" to stop current and pick a new tag
+# Usage: "tnext lunch" to stop current and start 'lunch' immediately
+tnext() {
+    active_id=$(task +ACTIVE ids)
 
-  # Build image if not exists
-  if ! docker image inspect $IMAGE_NAME >/dev/null 2>&1; then
-    docker build --platform linux/amd64 -t $IMAGE_NAME - <<'EOF'
-FROM debian:latest
-RUN apt update && apt install -y gcc gdb valgrind vim make && apt clean
-WORKDIR /mnt
-EOF
-  fi
+    if [ -n "$active_id" ]; then
+        task "$active_id" stop
+        echo "✓ Stopped task $active_id"
+    fi
 
-  # Run a temporary container with current dir mounted, and auto-remove after exit
-  docker run -it --rm \
-    -v "$PWD":/mnt \
-    -w /mnt \
-    --platform linux/amd64 \
-    $IMAGE_NAME \
-    bash
+    if [ -z "$1" ]; then
+        echo -n "What should we track now? "
+        read next_tag
+        timew start "$next_tag"
+    else
+        timew start "$@"
+    fi
 }
 
 eval "$(fzf --zsh)"
