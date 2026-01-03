@@ -77,3 +77,5 @@ color.sync.rejected=red
 # Command: undo
 color.undo.after=green
 color.undo.before=red
+
+include ~/.config/task/sync.conf
