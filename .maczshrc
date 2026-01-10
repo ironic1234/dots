@@ -117,8 +117,6 @@ alias code="code-insiders"
 alias cv="catvim"
 alias bu="brew update && brew upgrade --greedy"
 alias cdg='cd $(git rev-parse --show-toplevel)'
-alias tasks="taskwarrior-tui"
-alias tasksync='tw_gcal_sync --all -c "Things" --google-secret /Users/ronak/keys/client_secret_366941698378-ov6nd5c0kf5jhim9eceo6oh60ke0c0uj.apps.googleusercontent.com.json'
 
 # Multiple Homebrews on Apple Silicon
 if [ "$(arch)" = "arm64" ]; then
@@ -133,25 +131,6 @@ openclose() {
 	exit
 }
 
-
-# Usage: "tnext" to stop current and pick a new tag
-# Usage: "tnext lunch" to stop current and start 'lunch' immediately
-tnext() {
-    active_id=$(task +ACTIVE ids)
-
-    if [ -n "$active_id" ]; then
-        task "$active_id" stop
-        echo "✓ Stopped task $active_id"
-    fi
-
-    if [ -z "$1" ]; then
-        echo -n "What should we track now? "
-        read next_tag
-        timew start "$next_tag"
-    else
-        timew start "$@"
-    fi
-}
 
 eval "$(fzf --zsh)"
 
