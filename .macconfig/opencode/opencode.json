@@ -1,0 +1,31 @@
+{
+    "$schema": "https://opencode.ai/config.json",
+    "theme": "catppuccin",
+    "autoupdate": true,
+
+    "provider": {
+        "mlx": {
+            "npm": "@ai-sdk/openai-compatible",
+            "name": "MLX (local)",
+            "options": {
+                "baseURL": "http://127.0.0.1:8080/v1"
+            },
+            "models": {
+                "mlx-community/DeepSeek-R1-0528-Qwen3-8B-4bit-DWQ": {
+                    "name": "DeepSeek R1 0528 Qwen3 8B"
+                }
+            }
+        }
+    },
+
+    "mcp": {
+        "context7": {
+            "type": "remote",
+            "url": "https://mcp.context7.com/mcp",
+            "headers": {
+                "CONTEXT7_API_KEY": "ctx7sk-e5081d3b-fc40-4a98-90fc-19af3b1d51c4"
+            },
+            "enabled": true
+        }
+    }
+}
