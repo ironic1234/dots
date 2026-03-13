@@ -6,7 +6,7 @@ return {
 		opts = {},
 	},
 	{
-		"Thiago4532/mdmath.nvim",
+		"ronakpjain/mdmath.nvim",
 		ft = { "markdown", "tex" },
 		dependencies = {
 			"nvim-treesitter/nvim-treesitter",
