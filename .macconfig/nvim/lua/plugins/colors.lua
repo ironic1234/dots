@@ -36,7 +36,7 @@ return {
 			})
 
 			-- Colorscheme
-			vim.cmd.colorscheme("catppuccin")
+			vim.cmd.colorscheme("catppuccin-nvim")
 		end,
 	},
 	{
