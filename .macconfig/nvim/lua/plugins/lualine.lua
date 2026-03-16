@@ -10,7 +10,7 @@ return {
 				},
 				options = {
 					globalstatus = true,
-					theme = "catppuccin",
+					theme = "catppuccin-nvim",
 				},
 			})
 		end,
