@@ -41,5 +41,25 @@ return {
 	},
 	{
 		"https://gitlab.com/HiPhish/rainbow-delimiters.nvim",
+		config = function()
+			require("rainbow-delimiters.setup").setup({
+				strategy = {
+					[""] = function(bufnr)
+						local bo = vim.bo[bufnr]
+
+						if bo.buftype ~= "" then
+							return nil
+						end
+
+						local ok, parser = pcall(vim.treesitter.get_parser, bufnr)
+						if not ok or parser == nil then
+							return nil
+						end
+
+						return "rainbow-delimiters.strategy.global"
+					end,
+				},
+			})
+		end,
 	},
 }
