@@ -21,7 +21,7 @@ ctrl + alt - left : yabai -m window --display 2; yabai -m display --focus 2;
 alt - l : yabai -m display --focus 1;
 alt - j : yabai -m display --focus 2;
 
-alt - k : kitty --single-instance; 
+alt - k : kitty --single-instance --directory ~; 
 alt - t : open "/Applications/Firefox Nightly.app"
 alt - w : skhd --key "cmd - w";
 alt - q : skhd --key "cmd - q";

@@ -150,8 +150,6 @@ export FZF_DEFAULT_OPTS=" \
 export VIRTUAL_ENV_DISABLE_PROMPT=1
 source ~/.venv/bin/activate
 
-cd ~
-
 # The following lines have been added by Docker Desktop to enable Docker CLI completions.
 fpath=(/Users/ronak/.docker/completions $fpath)
 autoload -Uz compinit
