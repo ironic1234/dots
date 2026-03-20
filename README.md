@@ -4,6 +4,14 @@ This repository stores my personal configuration for macOS
 
 ![Screenshot](background/Screenshot.png)
 
+## Repository layout
+- `macconfig/` – macOS services, keybindings, and status bar configs (was `.macconfig`).
+- `linuxconfig/` – Linux-specific helpers and terminals (was `.linuxconfig`).
+- `vim/` – Vim/Neovim configuration, plugins, and runtime files (was `.vim`).
+- Top-level files such as `maczshrc`, `linuxzshrc`, `vimrc`, and `hammerspoon` each live here and are symlinked into `~/`.
+
+All home-level dotfiles now point to these directories so the repository can keep clean names while the symlinks stay familiar.
+
 ## [Neovim](https://neovim.io/)
 Text Editor of choice
 - Vim motions
