@@ -59,7 +59,8 @@
                     "*": "deny",
                     "planner": "allow",
                     "executor": "allow",
-                    "test-runner": "allow",
+                    "reviewer": "allow",
+                    "debugger": "allow",
                     "explore": "allow",
                     "docs-researcher": "allow",
                     "github": "allow"
@@ -67,20 +68,13 @@
             }
         },
         "executor": {
-            "description": "General execution agent for implementation, refactoring, and bug fixing",
+            "description": "General execution agent for implementation, testing, refactoring, and bug fixing",
             "mode": "all",
             "temperature": 0.2,
             "prompt": "{file:./prompts/executor-general.md}",
             "permission": {
                 "bash": {
-                    "*": "allow",
-                    "npm test*": "deny",
-                    "pnpm test*": "deny",
-                    "yarn test*": "deny",
-                    "bun test*": "deny",
-                    "pytest*": "deny",
-                    "go test*": "deny",
-                    "cargo test*": "deny"
+                    "*": "allow"
                 },
                 "task": {
                     "*": "deny"
@@ -121,19 +115,6 @@
                 }
             }
         },
-        "test-runner": {
-            "description": "Testing specialist that runs and analyzes test, lint, and build checks",
-            "mode": "subagent",
-            "temperature": 0.1,
-            "prompt": "{file:./prompts/test-runner.md}",
-            "permission": {
-                "edit": "deny",
-                "bash": "allow",
-                "task": {
-                    "*": "deny"
-                }
-            }
-        },
         "browser-agent": {
             "description": "Browser automation specialist that prioritizes Playwright MCP workflows",
             "mode": "all",
@@ -142,6 +123,76 @@
             "permission": {
                 "bash": {
                     "*": "allow"
+                },
+                "task": {
+                    "*": "deny"
+                }
+            }
+        },
+        "reviewer": {
+            "description": "Code review specialist for correctness, security, style, and completeness checks",
+            "mode": "subagent",
+            "temperature": 0.1,
+            "prompt": "{file:./prompts/reviewer.md}",
+            "permission": {
+                "edit": "deny",
+                "task": {
+                    "*": "deny"
+                },
+                "bash": {
+                    "*": "deny",
+                    "git diff*": "allow",
+                    "git log*": "allow",
+                    "git show*": "allow",
+                    "git status*": "allow",
+                    "rg *": "allow",
+                    "grep *": "allow",
+                    "ls *": "allow",
+                    "cat *": "allow",
+                    "npx eslint*": "allow",
+                    "npx prettier*": "allow",
+                    "bunx *lint*": "allow",
+                    "bunx *check*": "allow",
+                    "python3 -m *lint*": "allow",
+                    "python3 -m *check*": "allow"
+                }
+            }
+        },
+        "debugger": {
+            "description": "Failure diagnosis specialist for test failures, errors, and stack traces",
+            "mode": "subagent",
+            "temperature": 0.1,
+            "prompt": "{file:./prompts/debugger.md}",
+            "permission": {
+                "edit": "deny",
+                "task": {
+                    "*": "deny"
+                },
+                "bash": {
+                    "*": "allow"
+                }
+            }
+        },
+        "explore": {
+            "description": "Codebase discovery agent for structure mapping and targeted code search",
+            "mode": "subagent",
+            "temperature": 0.1,
+            "prompt": "{file:./prompts/explore.md}",
+            "permission": {
+                "edit": "deny",
+                "bash": {
+                    "*": "deny",
+                    "ls *": "allow",
+                    "find *": "allow",
+                    "rg *": "allow",
+                    "grep *": "allow",
+                    "git log*": "allow",
+                    "git diff*": "allow",
+                    "git show*": "allow",
+                    "git status*": "allow",
+                    "cat *": "allow",
+                    "head *": "allow",
+                    "tree *": "allow"
                 },
                 "task": {
                     "*": "deny"
