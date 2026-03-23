@@ -2,6 +2,7 @@ return {
 	{
 		"nvim-lualine/lualine.nvim",
 		dependencies = { "nvim-tree/nvim-web-devicons" },
+		event = "VeryLazy",
 		config = function()
 			require("lualine").setup({
 				sections = {
@@ -9,7 +10,7 @@ return {
 				},
 				options = {
 					globalstatus = true,
-					theme = "catppuccin",
+					theme = "catppuccin-nvim",
 				},
 			})
 		end,

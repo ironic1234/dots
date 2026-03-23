@@ -34,10 +34,15 @@ return {
 					}
 				end,
 			})
+
+			-- Colorscheme
 			vim.cmd.colorscheme("catppuccin-nvim")
 		end,
 	},
 	{
 		"https://gitlab.com/HiPhish/rainbow-delimiters.nvim",
+		config = function()
+			require("rainbow-delimiters.setup").setup({})
+		end,
 	},
 }
