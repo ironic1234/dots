@@ -1,10 +1,12 @@
 # Dotfiles
 
-This repository stores my personal configuration for macOS
+This repository stores my personal configuration for macOS and Linux (Arch + Hyprland/Niri).
 
 ![Screenshot](background/Screenshot.png)
 
 ## Quick Setup
+
+### macOS
 
 ```bash
 git clone https://github.com/ronak/dots.git ~/dots
@@ -13,16 +15,26 @@ cd ~/dots && ./setup-mac.sh
 
 The script installs everything: Homebrew, packages, Oh My Zsh, plugins, symlinks, Neovim plugins, services, and macOS defaults.
 
+### Linux (Arch)
+
+```bash
+git clone https://github.com/ronak/dots.git ~/dots
+cd ~/dots && ./setup-linux.sh
+```
+
+The script installs everything: yay packages, Oh My Zsh, plugins, symlinks, Neovim plugins, and Wayland session config.
+
 ## Repository layout
 - `macconfig/` – macOS services, keybindings, and status bar configs.
-- `linuxconfig/` – Linux-specific helpers and terminals.
+- `linuxconfig/` – Linux Hyprland, Niri, Kitty, Waybar, Rofi, and Neovim configs.
 - `vim/` – Vim/Neovim configuration, plugins, and runtime files.
 - `setup-mac.sh` – Full Mac bootstrap script.
+- `setup-linux.sh` – Full Linux (Arch) bootstrap script.
 - Top-level files such as `maczshrc`, `linuxzshrc`, `vimrc` are symlinked into `~/`.
 
 ## What gets installed
 
-### Homebrew Formulae
+### macOS — Homebrew Formulae
 
 | Category | Packages |
 |---|---|
@@ -36,13 +48,13 @@ The script installs everything: Homebrew, packages, Oh My Zsh, plugins, symlinks
 | **Media** | ffmpeg, yt-dlp, mpv, imagemagick |
 | **Misc** | spicetify-cli, mactop, deno, uv |
 
-### GitHub Releases
+### macOS — GitHub Releases
 
 | App | Source |
 |---|---|
 | [Mofi](https://github.com/ronakpjain/mofi) | Latest release — Spotlight replacement with theming |
 
-### Homebrew Casks
+### macOS — Homebrew Casks
 
 | Category | Packages |
 |---|---|
@@ -55,14 +67,14 @@ The script installs everything: Homebrew, packages, Oh My Zsh, plugins, symlinks
 | **Dev Tools** | docker-desktop |
 | **Productivity** | tailscale-app, slack@beta, thunderbird, transmission |
 
-### Shell Setup
-- [Oh My Zsh](https://github.com/ohmyzsh/ohmyzsh) with plugins: git, zsh-autosuggestions, zsh-syntax-highlighting, zsh-interactive-cd
+### Shell Setup (both macOS & Linux)
+- [Oh My Zsh](https://github.com/ohmyzsh/ohmyzsh) with plugins: git, zsh-autosuggestions, zsh-syntax-highlighting
 - [Catppuccin Mocha](https://github.com/catppuccin/zsh-syntax-highlighting) syntax highlighting theme
 - [fzf](https://github.com/junegunn/fzf) fuzzy finder with Catppuccin colors
 - [vivid](https://github.com/sharkdp/vivid) LS_COLORS with Catppuccin Mocha
 - [eza](https://github.com/eza-community/eza) as `ls` replacement with icons
 
-### Symlinks
+### macOS — Symlinks
 
 | Source | Target |
 |---|---|
@@ -79,13 +91,53 @@ The script installs everything: Homebrew, packages, Oh My Zsh, plugins, symlinks
 | `dots/macconfig/opencode/` | `~/.config/opencode/` |
 | `dots/macconfig/mofi/` | `~/.config/mofi/` |
 
-### macOS Defaults Applied
+### macOS — Defaults Applied
 - Fast key repeat (KeyRepeat=2, InitialKeyRepeat=15)
 - Disable press-and-hold (key repeat instead)
 - Show hidden files and extensions in Finder
 - Disable .DS_Store on network volumes
 - Disable quarantine dialog for downloaded apps
 - Expand save/print panels by default
+
+---
+
+### Linux — yay Packages
+
+| Category | Packages |
+|---|---|
+| **Tiling WM** | hyprland, niri, waybar, rofi, hyprlock, hyprpaper, awww-bin, uwsm |
+| **Terminal & Shell** | kitty, zsh, eza, fzf, fd, ripgrep, zoxide, vivid, tree |
+| **Editors** | neovim |
+| **Languages** | python, nodejs, go, rust, lua, luajit |
+| **LSP & Formatters** | stylua, prettier, gopls, rust-analyzer, lua-language-server |
+| **Build Tools** | cmake, make, gcc, ninja, meson, pkgconf |
+| **CLI Utilities** | gh, git, jq, wget, btop, fastfetch, ncdu, pstree, htop |
+| **Wayland Utilities** | grim, slurp, wl-clipboard, playerctl, brightnessctl, wireplumber, pipewire, pipewire-alsa, pipewire-pulse, pavucontrol, swaybg, wl-kbptr |
+| **Media** | ffmpeg, yt-dlp, mpv, imagemagick |
+| **Fonts** | ttf-hack, ttf-jetbrains-mono, noto-fonts, noto-fonts-cjk |
+
+### Linux — AUR Packages
+
+| Package | Description |
+|---|---|
+| visual-studio-code-bin | VS Code |
+| zed | Zed editor |
+| spotify | Spotify client |
+
+### Linux — Symlinks
+
+| Source | Target |
+|---|---|
+| `dots/linuxzshrc` | `~/.zshrc` |
+| `dots/vimrc` | `~/.vimrc` |
+| `dots/vim/` | `~/.vim/` |
+| `dots/linuxconfig/nvim/` | `~/.config/nvim/` |
+| `dots/linuxconfig/kitty/` | `~/.config/kitty/` |
+| `dots/linuxconfig/hypr/` | `~/.config/hypr/` |
+| `dots/linuxconfig/waybar/` | `~/.config/waybar/` |
+| `dots/linuxconfig/niri/` | `~/.config/niri/` |
+| `dots/linuxconfig/rofi/` | `~/.config/rofi/` |
+| `dots/linuxconfig/opencode/` | `~/.config/opencode/` |
 
 ## [Neovim](https://neovim.io/)
 Text Editor of choice
@@ -201,3 +253,50 @@ Browser of choice
 ## ![Mofi](https://github.com/ironic1234/mofi)
 - Spotlight replacement with theming
 - (it's mine)
+
+## [Hyprland](https://hyprland.org/)
+Tiling Wayland compositor for Linux
+- [Catppuccin](https://github.com/catppuccin/hyprland) themed borders and styling
+- Animated wallpaper via [awww](https://github.com/Sk7Str1d3r/awww)
+- [hyprlock](https://github.com/hyprwm/hyprlock) for screen locking
+- [hyprpaper](https://github.com/hyprwm/hyprpaper) for wallpaper management
+- Keybindings:
+    - Alt - K: Kitty terminal
+    - Alt - R: Rofi launcher
+    - Alt - F: Fullscreen
+    - Alt - Q: Close window (Ctrl+Q for Firefox)
+    - Alt - W: Ctrl+W (close tab)
+    - Alt - V: Toggle floating
+    - Alt - S: Scratchpad
+    - Alt - L: Lock screen (hyprlock)
+    - Alt - O: Shutdown
+    - Alt - A: Keyboard pointer (wl-kbptr)
+    - Alt - Arrow keys: Focus direction
+    - Alt - 1-9: Switch workspace
+    - Alt+Shift - 1-9: Move window to workspace
+    - Super+Shift - S: Screenshot region
+
+## [Niri](https://github.com/YaLTeR/niri)
+Scrollable tiling Wayland compositor
+- Wallpaper via [swaybg](https://github.com/swaywm/swaybg)
+- Keybindings:
+    - Alt - K: Kitty terminal
+    - Alt - R: Rofi launcher
+    - Alt - Q: Close window
+    - Mod - F: Maximize column
+    - Mod - V: Toggle floating
+    - Mod - O: Toggle overview
+    - Mod - Arrow keys / HJKL: Focus windows
+    - Mod+Ctrl - Arrow keys / HJKL: Move windows
+    - Mod - 1-9: Switch workspace
+    - Mod+Ctrl - 1-9: Move column to workspace
+    - Mod - U/I: Workspace down/up
+    - Print: Screenshot
+
+## [Waybar](https://github.com/Alexays/Waybar)
+Status bar for Wayland (used with both Hyprland and Niri)
+- [Catppuccin](https://github.com/catppuccin/waybar) themed styling
+
+## [Rofi](https://github.com/davatorium/rofi)
+Application launcher for Wayland
+- [Catppuccin Mocha](https://github.com/catppuccin/rofi) theme
