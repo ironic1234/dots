@@ -1,34 +1,215 @@
 {
     "$schema": "https://opencode.ai/config.json",
-    "theme": "catppuccin",
     "autoupdate": true,
-
-    "provider": {
-        "llama.cpp": {
-            "npm": "@ai-sdk/openai-compatible",
-            "name": "llama.cpp (local)",
-            "options": {
-                "baseURL": "http://127.0.0.1:8080/v1"
-            },
-            "models": {
-                "unsloth/DeepSeek-R1-0528-Qwen3-8B-GGUF:Q5_K_M": {
-                    "name": "DeepSeek R1 0528 Qwen3 8B"
-                    "limit": {
-                        "context": 128000,
-                        "output": 65536
-                    }
+    "default_agent": "builder",
+    "instructions": [
+        "./instructions/task-completion-and-testing.md",
+        "./instructions/planning-first-execution.md"
+    ],
+    "permission": {
+        "bash": {
+            "*": "allow",
+            "gh *": "deny"
+        }
+    },
+    "agent": {
+        "build": {
+            "disable": true
+        },
+        "plan": {
+            "disable": true
+        },
+        "builder": {
+            "description": "Primary implementation agent with mandatory planning before edits",
+            "mode": "primary",
+            "temperature": 0.2,
+            "prompt": "{file:./prompts/build-plan-first.md}",
+            "permission": {
+                "bash": {
+                    "*": "allow"
+                },
+                "task": {
+                    "*": "deny"
+                }
+            }
+        },
+        "planner": {
+            "description": "Read-only planning agent for architecture, sequencing, and risk analysis",
+            "mode": "all",
+            "temperature": 0.1,
+            "prompt": "{file:./prompts/planner-readonly.md}",
+            "permission": {
+                "edit": "deny",
+                "bash": "deny",
+                "task": {
+                    "*": "deny"
+                }
+            }
+        },
+        "orchestrator": {
+            "description": "Manager agent that decomposes work and delegates execution to specialists",
+            "mode": "all",
+            "temperature": 0.2,
+            "prompt": "{file:./prompts/orchestrator-manager.md}",
+            "permission": {
+                "edit": "deny",
+                "bash": "deny",
+                "webfetch": "deny",
+                "task": {
+                    "*": "deny",
+                    "planner": "allow",
+                    "executor": "allow",
+                    "reviewer": "allow",
+                    "debugger": "allow",
+                    "explore": "allow",
+                    "docs-researcher": "allow",
+                    "github": "allow"
+                }
+            }
+        },
+        "executor": {
+            "description": "General execution agent for implementation, testing, refactoring, and bug fixing",
+            "mode": "all",
+            "temperature": 0.2,
+            "prompt": "{file:./prompts/executor-general.md}",
+            "permission": {
+                "bash": {
+                    "*": "allow"
+                },
+                "task": {
+                    "*": "deny"
+                }
+            }
+        },
+        "github": {
+            "description": "GitHub specialist that uses gh CLI for PRs, issues, and checks",
+            "mode": "subagent",
+            "temperature": 0.1,
+            "prompt": "{file:./prompts/github-specialist.md}",
+            "permission": {
+                "edit": "deny",
+                "webfetch": "deny",
+                "task": {
+                    "*": "deny"
+                },
+                "bash": {
+                    "*": "deny",
+                    "gh *": "allow",
+                    "git status *": "allow",
+                    "git diff*": "allow",
+                    "git log*": "allow"
+                }
+            }
+        },
+        "docs-researcher": {
+            "description": "Documentation specialist for web and Context7 research",
+            "mode": "subagent",
+            "temperature": 0.1,
+            "prompt": "{file:./prompts/docs-researcher.md}",
+            "permission": {
+                "edit": "deny",
+                "bash": "deny",
+                "webfetch": "allow",
+                "task": {
+                    "*": "deny"
+                }
+            }
+        },
+        "browser-agent": {
+            "description": "Browser automation specialist that prioritizes Playwright MCP workflows",
+            "mode": "all",
+            "temperature": 0.1,
+            "prompt": "{file:./prompts/browser-agent.md}",
+            "permission": {
+                "bash": {
+                    "*": "allow"
+                },
+                "task": {
+                    "*": "deny"
+                }
+            }
+        },
+        "reviewer": {
+            "description": "Code review specialist for correctness, security, style, and completeness checks",
+            "mode": "subagent",
+            "temperature": 0.1,
+            "prompt": "{file:./prompts/reviewer.md}",
+            "permission": {
+                "edit": "deny",
+                "task": {
+                    "*": "deny"
+                },
+                "bash": {
+                    "*": "deny",
+                    "git diff*": "allow",
+                    "git log*": "allow",
+                    "git show*": "allow",
+                    "git status*": "allow",
+                    "rg *": "allow",
+                    "grep *": "allow",
+                    "ls *": "allow",
+                    "cat *": "allow",
+                    "npx eslint*": "allow",
+                    "npx prettier*": "allow",
+                    "bunx *lint*": "allow",
+                    "bunx *check*": "allow",
+                    "python3 -m *lint*": "allow",
+                    "python3 -m *check*": "allow"
+                }
+            }
+        },
+        "debugger": {
+            "description": "Failure diagnosis specialist for test failures, errors, and stack traces",
+            "mode": "subagent",
+            "temperature": 0.1,
+            "prompt": "{file:./prompts/debugger.md}",
+            "permission": {
+                "edit": "deny",
+                "task": {
+                    "*": "deny"
+                },
+                "bash": {
+                    "*": "allow"
+                }
+            }
+        },
+        "explore": {
+            "description": "Codebase discovery agent for structure mapping and targeted code search",
+            "mode": "subagent",
+            "temperature": 0.1,
+            "prompt": "{file:./prompts/explore.md}",
+            "permission": {
+                "edit": "deny",
+                "bash": {
+                    "*": "deny",
+                    "ls *": "allow",
+                    "find *": "allow",
+                    "rg *": "allow",
+                    "grep *": "allow",
+                    "git log*": "allow",
+                    "git diff*": "allow",
+                    "git show*": "allow",
+                    "git status*": "allow",
+                    "cat *": "allow",
+                    "head *": "allow",
+                    "tree *": "allow"
+                },
+                "task": {
+                    "*": "deny"
                 }
             }
         }
     },
 
     "mcp": {
-        "context7": {
-            "type": "remote",
-            "url": "https://mcp.context7.com/mcp",
-            "headers": {
-                "CONTEXT7_API_KEY": "ctx7sk-e5081d3b-fc40-4a98-90fc-19af3b1d51c4"
-            },
+        "pdf-reader": {
+            "type": "local",
+            "command": ["bun", "x", "@sylphx/pdf-reader-mcp"],
+            "enabled": true
+        },
+        "playwright": {
+            "type": "local",
+            "command": ["bun", "x", "@playwright/mcp@latest", "--browser", "firefox"],
             "enabled": true
         }
     }
