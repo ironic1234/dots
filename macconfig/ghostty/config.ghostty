@@ -3,7 +3,9 @@ theme = Catppuccin Mocha
 
 # === Window padding ===
 window-padding-x = 10
-window-padding-y = 10
+window-padding-y = 8
+
+macos-titlebar-style = hidden
 
 background-opacity = 0.8
 background-blur = true
@@ -14,3 +16,5 @@ font-style = "Regular"
 font-style-bold = "Bold"
 font-style-italic = "Italic"
 font-style-bold-italic = "Bold Italic"
+
+font-size = 12.0
