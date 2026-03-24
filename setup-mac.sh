@@ -275,38 +275,41 @@ fi
 info "Symlinking dotfiles..."
 
 # Shell
-link "$DOTS/maczshrc"              "$HOME_DIR/.zshrc"
+link "$DOTS/maczshrc"               "$HOME_DIR/.zshrc"
 
 # Vim
-link "$DOTS/vimrc"                 "$HOME_DIR/.vimrc"
-link "$DOTS/vim"                   "$HOME_DIR/.vim"
+link "$DOTS/vimrc"                  "$HOME_DIR/.vimrc"
+link "$DOTS/vim"                    "$HOME_DIR/.vim"
 
 # Neovim
-link "$DOTS/macconfig/nvim"        "$HOME_DIR/.config/nvim"
+link "$DOTS/macconfig/nvim"         "$HOME_DIR/.config/nvim"
 
 # Kitty
-link "$DOTS/macconfig/kitty"       "$HOME_DIR/.config/kitty"
+link "$DOTS/macconfig/kitty"        "$HOME_DIR/.config/kitty"
+
+# Ghostty
+link "$DOTS/macconfig/ghostty"      "$HOME_DIR/.config/ghostty"
 
 # Yabai (tiling WM)
-link "$DOTS/macconfig/yabai"       "$HOME_DIR/.config/yabai"
+link "$DOTS/macconfig/yabai"        "$HOME_DIR/.config/yabai"
 
 # skhd (hotkey daemon)
-link "$DOTS/macconfig/skhd"        "$HOME_DIR/.config/skhd"
+link "$DOTS/macconfig/skhd"         "$HOME_DIR/.config/skhd"
 
 # SketchyBar
-link "$DOTS/macconfig/sketchybar"  "$HOME_DIR/.config/sketchybar"
+link "$DOTS/macconfig/sketchybar"   "$HOME_DIR/.config/sketchybar"
 
 # Hammerspoon
-link "$DOTS/macconfig/hammerspoon" "$HOME_DIR/.hammerspoon"
+link "$DOTS/macconfig/hammerspoon"  "$HOME_DIR/.hammerspoon"
 
 # JankyBorders
-link "$DOTS/macconfig/borders"     "$HOME_DIR/.config/borders"
+link "$DOTS/macconfig/borders"      "$HOME_DIR/.config/borders"
 
 # OpenCode
-link "$DOTS/macconfig/opencode"    "$HOME_DIR/.config/opencode"
+link "$DOTS/macconfig/opencode"     "$HOME_DIR/.config/opencode"
 
 # Mofi
-link "$DOTS/macconfig/mofi"        "$HOME_DIR/.config/mofi"
+link "$DOTS/macconfig/mofi"         "$HOME_DIR/.config/mofi"
 
 # ═══════════════════════════════════════════════════════
 #  5. NEOVIM PLUGINS
