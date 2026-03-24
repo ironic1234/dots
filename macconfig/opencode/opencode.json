@@ -5,9 +5,12 @@
     "default_agent": "builder",
     "instructions": [
         "./instructions/task-completion-and-testing.md",
-        "./instructions/planning-first-execution.md"
+        "./instructions/planning-first-execution.md",
+        "./instructions/long-run-persistence.md",
+        "./instructions/user-choice-questions.md"
     ],
     "permission": {
+        "question": "allow",
         "bash": {
             "*": "allow",
             "gh *": "deny"
@@ -23,9 +26,10 @@
         "builder": {
             "description": "Primary implementation agent with mandatory planning before edits",
             "mode": "primary",
-            "temperature": 0.2,
+            "temperature": 0.1,
             "prompt": "{file:./prompts/build-plan-first.md}",
             "permission": {
+                "question": "allow",
                 "bash": {
                     "*": "allow"
                 },
@@ -53,6 +57,7 @@
             "temperature": 0.2,
             "prompt": "{file:./prompts/orchestrator-manager.md}",
             "permission": {
+                "question": "allow",
                 "edit": "deny",
                 "bash": "deny",
                 "webfetch": "deny",
