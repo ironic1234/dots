@@ -239,6 +239,7 @@ return {
 					c = { "clang-format" },
 					cpp = { "clang-format" },
 					rust = { "rustfmt" },
+					json = { "fixjson" },
 				},
 			})
 			-- Format command

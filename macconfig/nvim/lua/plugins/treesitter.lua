@@ -1,12 +1,9 @@
 return {
 	"nvim-treesitter/nvim-treesitter",
+	branch = "main",
+	lazy = false,
 	build = ":TSUpdate",
 	config = function()
-		local configs = require("nvim-treesitter.configs")
-
-		configs.setup({
-			highlight = { enable = true },
-			indent = { enable = true },
-		})
+		require("nvim-treesitter").setup()
 	end,
 }
