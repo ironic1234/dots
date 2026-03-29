@@ -1,0 +1,7 @@
+{
+  "lastChangelogVersion": "0.63.2",
+  "defaultProvider": "openai-codex",
+  "defaultModel": "gpt-5.3-codex-spark",
+  "defaultThinkingLevel": "high",
+  "hideThinkingBlock": false
+}

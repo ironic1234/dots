@@ -308,6 +308,9 @@ link "$DOTS/macconfig/borders"      "$HOME_DIR/.config/borders"
 # OpenCode
 link "$DOTS/macconfig/opencode"     "$HOME_DIR/.config/opencode"
 
+# Pi
+link "$DOTS/pi"           "$HOME_DIR/.pi"
+
 # Mofi
 link "$DOTS/macconfig/mofi"         "$HOME_DIR/.config/mofi"
 
