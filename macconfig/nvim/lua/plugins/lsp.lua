@@ -29,7 +29,7 @@ local servers = {
 	"verible",
 }
 
-local on_attach = function()
+local on_attach = function(client)
 	local orig_floating_preview = vim.lsp.util.open_floating_preview
 
 	---@diagnostic disable-next-line: duplicate-set-field
@@ -41,12 +41,180 @@ local on_attach = function()
 	end
 
 	vim.lsp.inlay_hint.enable(true)
+
+	if client and client.name == "ty" then
+		client.server_capabilities.completionProvider = nil
+		client.server_capabilities.hoverProvider = false
+		client.server_capabilities.signatureHelpProvider = false
+		client.server_capabilities.definitionProvider = false
+		client.server_capabilities.declarationProvider = false
+		client.server_capabilities.referencesProvider = false
+		client.server_capabilities.renameProvider = false
+		client.server_capabilities.codeActionProvider = false
+		client.server_capabilities.documentSymbolProvider = false
+		client.server_capabilities.workspaceSymbolProvider = false
+		client.server_capabilities.documentFormattingProvider = false
+		client.server_capabilities.documentRangeFormattingProvider = false
+	end
 end
 
 vim.diagnostic.config({
 	virtual_text = false,
 	virtual_lines = true,
 })
+
+if vim.g.ronak_lsp_user_commands_loaded ~= 1 then
+	vim.g.ronak_lsp_user_commands_loaded = 1
+
+	local lsp_subcommands = {
+		"info",
+		"clients",
+		"restart",
+		"stop",
+		"hover",
+		"definition",
+		"references",
+		"rename",
+		"code_action",
+		"format",
+		"diag",
+		"next",
+		"prev",
+		"log",
+	}
+
+	local function attached_clients(bufnr)
+		return vim.lsp.get_clients({ bufnr = bufnr })
+	end
+
+	local function create_user_command(name, fn, opts)
+		if vim.fn.exists(":" .. name) == 0 then
+			vim.api.nvim_create_user_command(name, fn, opts)
+		end
+	end
+
+	local function show_clients(bufnr)
+		local clients = attached_clients(bufnr)
+		if #clients == 0 then
+			vim.notify("No LSP clients attached to this buffer", vim.log.levels.WARN)
+			return
+		end
+
+		local lines = { "Attached LSP clients:" }
+		for _, client in ipairs(clients) do
+			lines[#lines + 1] = string.format("- %s (id=%d)", client.name, client.id)
+		end
+		vim.notify(table.concat(lines, "\n"), vim.log.levels.INFO)
+	end
+
+	local function restart_clients(bufnr)
+		local clients = attached_clients(bufnr)
+		if #clients == 0 then
+			vim.notify("No LSP clients attached to restart", vim.log.levels.WARN)
+			return
+		end
+
+		local names = {}
+		for _, client in ipairs(clients) do
+			names[client.name] = true
+			client:stop(true)
+		end
+
+		vim.defer_fn(function()
+			vim.cmd("edit")
+			local restarted = vim.tbl_keys(names)
+			table.sort(restarted)
+			for _, name in ipairs(restarted) do
+				pcall(vim.lsp.enable, name)
+			end
+			vim.notify("Restarted LSP: " .. table.concat(restarted, ", "), vim.log.levels.INFO)
+		end, 100)
+	end
+
+	local actions = {
+		info = function()
+			if vim.fn.exists(":LspInfo") == 2 then
+				vim.cmd("LspInfo")
+			else
+				show_clients(vim.api.nvim_get_current_buf())
+			end
+		end,
+		clients = function()
+			show_clients(vim.api.nvim_get_current_buf())
+		end,
+		restart = function()
+			restart_clients(vim.api.nvim_get_current_buf())
+		end,
+		stop = function()
+			local clients = attached_clients(vim.api.nvim_get_current_buf())
+			for _, client in ipairs(clients) do
+				client:stop(true)
+			end
+			vim.notify("Stopped " .. #clients .. " LSP client(s)", vim.log.levels.INFO)
+		end,
+		hover = function()
+			vim.lsp.buf.hover()
+		end,
+		definition = function()
+			vim.lsp.buf.definition()
+		end,
+		references = function()
+			vim.lsp.buf.references()
+		end,
+		rename = function()
+			vim.lsp.buf.rename()
+		end,
+		code_action = function()
+			vim.lsp.buf.code_action()
+		end,
+		format = function()
+			vim.lsp.buf.format({ async = true })
+		end,
+		diag = function()
+			vim.diagnostic.open_float(nil, { focusable = false })
+		end,
+		next = function()
+			vim.diagnostic.jump({ count = 1, float = true })
+		end,
+		prev = function()
+			vim.diagnostic.jump({ count = -1, float = true })
+		end,
+		log = function()
+			vim.cmd("edit " .. vim.lsp.log.get_filename())
+		end,
+	}
+
+	create_user_command("Lsp", function(opts)
+		local sub = opts.fargs[1] or "info"
+		local action = actions[sub]
+		if not action then
+			vim.notify("Unknown Lsp subcommand: " .. sub, vim.log.levels.ERROR)
+			vim.notify("Try: " .. table.concat(lsp_subcommands, ", "), vim.log.levels.INFO)
+			return
+		end
+		action()
+	end, {
+		nargs = "*",
+		desc = "LSP helper commands",
+		complete = function(arglead)
+			local matches = {}
+			for _, cmd in ipairs(lsp_subcommands) do
+				if cmd:sub(1, #arglead) == arglead then
+					matches[#matches + 1] = cmd
+				end
+			end
+			return matches
+		end,
+	})
+
+	create_user_command("LspRestart", function()
+		restart_clients(vim.api.nvim_get_current_buf())
+	end, { desc = "Restart LSP clients for current buffer" })
+
+	create_user_command("LspClients", function()
+		show_clients(vim.api.nvim_get_current_buf())
+	end, { desc = "Show LSP clients attached to current buffer" })
+end
 
 for _, server in ipairs(servers) do
 	if server == "pylsp" then
@@ -55,12 +223,24 @@ for _, server in ipairs(servers) do
 			settings = {
 				pylsp = {
 					plugins = {
-						pyflakes = { enabled = true },
+						pyflakes = { enabled = false },
+						pycodestyle = { enabled = false },
+						mccabe = { enabled = false },
+						pylint = { enabled = false },
+						flake8 = { enabled = false },
+						ruff = { enabled = false },
+						autopep8 = { enabled = false },
+						yapf = { enabled = false },
 					},
 				},
 			},
 		}
 		vim.lsp.enable("pylsp")
+	elseif server == "ty" then
+		vim.lsp.config.ty = {
+			on_attach = on_attach,
+		}
+		vim.lsp.enable("ty")
 	elseif server == "lua_ls" then
 		vim.lsp.config.lua_ls = {
 			on_attach = on_attach,
