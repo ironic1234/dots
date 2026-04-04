@@ -32,7 +32,8 @@ dap.configurations.c = dap.configurations.cpp
 
 dap.adapters.python = {
 	type = "executable",
-	command = vim.fn.getenv("VIRTUAL_ENV") and (vim.fn.getenv("VIRTUAL_ENV") .. "/bin/python") or vim.fn.exepath("python3"),
+	command = vim.fn.getenv("VIRTUAL_ENV") and (vim.fn.getenv("VIRTUAL_ENV") .. "/bin/python")
+		or vim.fn.exepath("python3"),
 	args = { "-m", "debugpy.adapter" },
 }
 
