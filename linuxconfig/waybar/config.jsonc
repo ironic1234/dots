@@ -38,7 +38,7 @@
         "",
         ""
       ]
-    },
+    }
   },
   "battery": {
     "format": "<span>{icon}  {capacity}%</span>",

@@ -37,6 +37,7 @@ export FZF_DEFAULT_OPTS="
 # -----------------------------------------------------------------------------
 
 # History
+HISTFILE="$HOME/.zsh_history"
 HISTSIZE=50000
 SAVEHIST=10000
 setopt extended_history
@@ -218,6 +219,16 @@ alias rd=rmdir
 
 # General
 alias ls='eza --icons=always --hyperlink -a'
+alias l='eza --icons=always --hyperlink -l'
+alias ll='eza --icons=always --hyperlink -l'
+alias la='eza --icons=always --hyperlink -la'
+alias lt='eza --icons=always --hyperlink -l --sort=modified'
+alias lta='eza --icons=always --hyperlink -la --sort=modified'
+alias lS='eza --icons=always --hyperlink -l --sort=size'
+alias lSa='eza --icons=always --hyperlink -la --sort=size'
+alias l.='eza --icons=always --hyperlink -l -d .*'
+alias tree='eza --icons=always --hyperlink --tree'
+alias t='eza --icons=always --hyperlink --tree -L 2'
 alias catvim=nvim
 alias cv=nvim
 alias code='code-insiders --ozone-platform=wayland'
@@ -238,3 +249,10 @@ alias :qa='killall kitty'
 if [[ -z $DISPLAY && $(tty) = /dev/tty1 ]]; then
     exec uwsm start select
 fi
+
+# -----------------------------------------------------------------------------
+# Late sourcing
+# -----------------------------------------------------------------------------
+
+# Virtual environment
+[[ -f ~/.venv/bin/activate ]] && source ~/.venv/bin/activate

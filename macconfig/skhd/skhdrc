@@ -1,6 +1,8 @@
+# ── Layout ───────────────────────────────────────────────
 alt - e : yabai -m space --layout bsp;
 alt - s : yabai -m space --layout stack;
 
+# ── Focus ────────────────────────────────────────────────
 alt - down : yabai -m window --focus south;
 alt - up : yabai -m window --focus north;
 alt - right : yabai -m window --focus east;
@@ -8,6 +10,7 @@ alt - p : yabai -m window --focus east;
 alt - left : yabai -m window --focus west;
 alt - o : yabai -m window --focus west;
 
+# ── Window Manipulation ──────────────────────────────────
 shift + alt - down : yabai -m window --swap south;
 shift + alt - up : yabai -m window --swap north;
 shift + alt - right : yabai -m window --swap east;
@@ -16,18 +19,24 @@ shift + alt - left : yabai -m window --swap west;
 alt - f : yabai -m window --toggle zoom-fullscreen;
 alt - x : yabai -m window --close;
 
+# ── Display ──────────────────────────────────────────────
 ctrl + alt - right : yabai -m window --display 1; yabai -m display --focus 1;
 ctrl + alt - left : yabai -m window --display 2; yabai -m display --focus 2;
 alt - l : yabai -m display --focus 1;
 alt - j : yabai -m display --focus 2;
 
-alt - k : kitty --single-instance --directory ~; 
+# ── Apps ─────────────────────────────────────────────────
+alt - k : kitty --single-instance --directory ~;
 alt - t : open "/Applications/Firefox Nightly.app"
+alt - c : open /Applications/Neko.app
+
+# ── System ───────────────────────────────────────────────
 alt - w : skhd --key "cmd - w";
 alt - q : skhd --key "cmd - q";
 alt - a : /Users/ronak/.local/bin/warpd --hint
 alt - z : /Users/ronak/.local/bin/warpd --normal
 
+# ── Workspaces ───────────────────────────────────────────
 shift + alt - 1: yabai -m window --space 1
 shift + alt - 2: yabai -m window --space 2
 shift + alt - 3: yabai -m window --space 3
@@ -49,5 +58,3 @@ alt - 7: yabai -m space --focus 7
 alt - 8: yabai -m space --focus 8
 alt - 9: yabai -m space --focus 9
 alt - 0: yabai -m space --focus 10
-
-alt - c : open /Applications/Neko.app

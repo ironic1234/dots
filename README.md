@@ -215,28 +215,7 @@ OS that comes with the best laptops
 - Control -> Command (Windows key(?) in windowsland)
 - Caps Lock -> Esc
 ## [skhd](https://github.com/koekeishiya/skhd)
-Keybindings
-- Alt - e: BSP layout
-- Alt - s: Stack layout
-- Alt - f: Toggle fullscreen
-- Alt - k: Kitty
-- Alt - r: Open mofi
-- Alt - t: Firefox Nightly
-- Alt - a: Use warpd hints
-- Alt - j: Focus left monitor
-- Alt - l: Focus right monitor
-- Alt - o: Focus west
-- Alt - p: Focus east
-- Ctrl - Alt - left: Send window to left monitor
-- Ctrl - Alt - right: Send window to right monitor
-- Alt - {up, down, left, right}: Focus window in direction
-- Alt - Shift - {up, down, left, right}: Switch with window in direction
-- Shift - Alt - {1-8}: Send window to corresponding workspace
-- Alt - {1-8}: Switch to corresponding workspace
-- Alt - w: Send Cmd - w to window = Close tab
-- Alt - q: Send Cmd - q to window = Kill program
-- Alt - x: Close window
-- Alt - c: Open Neko
+Keybindings for yabai — see [keybinds.md](macconfig/yabai/keybinds.md) for full reference.
 ## [SketchyBar](https://github.com/FelixKratz/SketchyBar)
 Status bar to take up awkward notch space
 ## [JankyBorders](https://github.com/FelixKratz/JankyBorders)
@@ -255,43 +234,15 @@ Browser of choice
 - (it's mine)
 
 ## [Hyprland](https://hyprland.org/)
-Tiling Wayland compositor for Linux
+Tiling Wayland compositor for Linux — see [keybinds.md](linuxconfig/hypr/keybinds.md) for full reference.
 - [Catppuccin](https://github.com/catppuccin/hyprland) themed borders and styling
 - Animated wallpaper via [awww](https://github.com/Sk7Str1d3r/awww)
 - [hyprlock](https://github.com/hyprwm/hyprlock) for screen locking
 - [hyprpaper](https://github.com/hyprwm/hyprpaper) for wallpaper management
-- Keybindings:
-    - Alt - K: Kitty terminal
-    - Alt - R: Rofi launcher
-    - Alt - F: Fullscreen
-    - Alt - Q: Close window (Ctrl+Q for Firefox)
-    - Alt - W: Ctrl+W (close tab)
-    - Alt - V: Toggle floating
-    - Alt - S: Scratchpad
-    - Alt - L: Lock screen (hyprlock)
-    - Alt - O: Shutdown
-    - Alt - A: Keyboard pointer (wl-kbptr)
-    - Alt - Arrow keys: Focus direction
-    - Alt - 1-9: Switch workspace
-    - Alt+Shift - 1-9: Move window to workspace
-    - Super+Shift - S: Screenshot region
 
 ## [Niri](https://github.com/YaLTeR/niri)
-Scrollable tiling Wayland compositor
+Scrollable tiling Wayland compositor — see [keybinds.md](linuxconfig/niri/keybinds.md) for full reference.
 - Wallpaper via [swaybg](https://github.com/swaywm/swaybg)
-- Keybindings:
-    - Alt - K: Kitty terminal
-    - Alt - R: Rofi launcher
-    - Alt - Q: Close window
-    - Mod - F: Maximize column
-    - Mod - V: Toggle floating
-    - Mod - O: Toggle overview
-    - Mod - Arrow keys / HJKL: Focus windows
-    - Mod+Ctrl - Arrow keys / HJKL: Move windows
-    - Mod - 1-9: Switch workspace
-    - Mod+Ctrl - 1-9: Move column to workspace
-    - Mod - U/I: Workspace down/up
-    - Print: Screenshot
 
 ## [Waybar](https://github.com/Alexays/Waybar)
 Status bar for Wayland (used with both Hyprland and Niri)

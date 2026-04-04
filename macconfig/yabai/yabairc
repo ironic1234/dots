@@ -1,9 +1,17 @@
+# ── Signals ──────────────────────────────────────────────
 yabai -m signal --add event=dock_did_restart action="sudo yabai --load-sa"
 sudo yabai --load-sa
 
+yabai -m signal --add event=space_changed action="yabai -m window --focus \$(yabai -m query --windows --space | jq .[0].id)"
+yabai -m signal --add event=display_changed action="yabai -m window --focus \$(yabai -m query --windows --space | jq .[0].id)"
+
+yabai -m signal --add event=window_destroyed action="yabai -m query --windows --window &> /dev/null || yabai -m window --focus first"
+yabai -m signal --add event=application_terminated action="yabai -m query --windows --window &> /dev/null || yabai -m window --focus first"
+
+# ── Layout ───────────────────────────────────────────────
 yabai -m config layout bsp
 
-# Set all padding and gaps
+# ── Padding / Gaps ───────────────────────────────────────
 yabai -m config top_padding                 20
 yabai -m config bottom_padding              20
 yabai -m config left_padding                20
@@ -11,18 +19,15 @@ yabai -m config right_padding               20
 yabai -m config window_gap                  20
 yabai -m config window_animation_duration   0.2
 
+# ── Opacity ──────────────────────────────────────────────
 yabai -m config window_opacity on
 yabai -m config active_window_opacity 1.0
 yabai -m config normal_window_opacity 1.0
 
+# ── Focus ────────────────────────────────────────────────
 yabai -m config focus_follows_mouse autoraise
 
+# ── Rules ────────────────────────────────────────────────
 yabai -m rule --add app="^System Settings$" manage=off
 yabai -m rule --add app="^Calculator$" manage=off
 yabai -m rule --add app="^iPhone Mirroring$" manage=off
-
-yabai -m signal --add event=space_changed action="yabai -m window --focus \$(yabai -m query --windows --space | jq .[0].id)"
-yabai -m signal --add event=display_changed action="yabai -m window --focus \$(yabai -m query --windows --space | jq .[0].id)"
-
-yabai -m signal --add event=window_destroyed action="yabai -m query --windows --window &> /dev/null || yabai -m window --focus first"
-yabai -m signal --add event=application_terminated action="yabai -m query --windows --window &> /dev/null || yabai -m window --focus first"
