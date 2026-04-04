@@ -143,7 +143,7 @@ The script installs everything: yay packages, Oh My Zsh, plugins, symlinks, Neov
 Text Editor of choice
 - Vim motions
 - [Catppuccin](https://github.com/catppuccin/nvim) Theme
-- [lazy.nvim](https://github.com/folke/lazy.nvim) - Plugin manager
+- [vim.pack](https://neovim.io/doc/user/pack.html#vim.pack) - Built-in plugin manager
 - **UI & Appearance**
     - [Alpha](https://github.com/goolord/alpha-nvim) - Startup dashboard
     - [Catppuccin](https://github.com/catppuccin/nvim) - Colorscheme

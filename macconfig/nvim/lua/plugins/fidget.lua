@@ -1,4 +1,2 @@
-return {
-	"j-hui/fidget.nvim",
-	opts = {},
-}
+vim.pack.add({ "https://github.com/j-hui/fidget.nvim" }, { confirm = false, load = true })
+require("fidget").setup({})

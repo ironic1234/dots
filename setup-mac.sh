@@ -319,7 +319,7 @@ link "$DOTS/macconfig/mofi"         "$HOME_DIR/.config/mofi"
 # ═══════════════════════════════════════════════════════
 info "Installing Neovim plugins..."
 if command_exists nvim; then
-    nvim --headless "+Lazy! sync" +qa 2>/dev/null || true
+    nvim --headless "+lua vim.pack.update(nil, { force = true })" +qa 2>/dev/null || true
     ok "Neovim plugins synced"
 else
     warn "nvim not found, skipping plugin install"

@@ -1,10 +1,8 @@
-return {
-	"NeogitOrg/neogit",
-	event = "VeryLazy",
-	dependencies = {
-		"nvim-lua/plenary.nvim",
-		"sindrets/diffview.nvim",
-		"nvim-telescope/telescope.nvim",
-	},
-	opts = { graph_style = "kitty" },
-}
+vim.pack.add({
+	"https://github.com/nvim-lua/plenary.nvim",
+	"https://github.com/sindrets/diffview.nvim",
+	"https://github.com/nvim-telescope/telescope.nvim",
+	"https://github.com/NeogitOrg/neogit",
+}, { confirm = false, load = true })
+
+require("neogit").setup({ graph_style = "kitty" })

@@ -1,26 +1,21 @@
-return {
-	{ -- Telescope plugin and its dependencies
-		"nvim-telescope/telescope.nvim",
-		dependencies = {
-			"nvim-lua/plenary.nvim",
-			"nvim-tree/nvim-web-devicons",
-			"nvim-telescope/telescope-ui-select.nvim",
+vim.pack.add({
+	"https://github.com/nvim-lua/plenary.nvim",
+	"https://github.com/nvim-tree/nvim-web-devicons",
+	"https://github.com/nvim-telescope/telescope-ui-select.nvim",
+	"https://github.com/nvim-telescope/telescope.nvim",
+}, { confirm = false, load = true })
+
+local telescope = require("telescope")
+telescope.setup({
+	extensions = {
+		["ui-select"] = {
+			require("telescope.themes").get_dropdown(),
 		},
-		event = "VeryLazy",
-		config = function()
-			require("telescope").setup({
-				extensions = {
-					["ui-select"] = {
-						require("telescope.themes").get_dropdown(),
-					},
-				},
-				pickers = {
-					find_files = {
-						hidden = true,
-					},
-				},
-			})
-			require("telescope").load_extension("ui-select")
-		end,
 	},
-}
+	pickers = {
+		find_files = {
+			hidden = true,
+		},
+	},
+})
+telescope.load_extension("ui-select")

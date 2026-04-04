@@ -15,7 +15,7 @@ vim.keymap.set("n", "<leader>fo", vim.cmd.Oil, { desc = "Open Oil file manager" 
 vim.keymap.set("n", "<leader>fa", vim.cmd.Alpha, { desc = "Open Alpha dashboard" })
 
 -- StartupTime keymap
-vim.keymap.set("n", "<leader>fs", "<Cmd>Lazy profile<CR>", { desc = "Show Lazy profile/Startup time" })
+vim.keymap.set("n", "<leader>fs", function() vim.pack.update() end, { desc = "Update vim.pack plugins" })
 
 -- Go back to previous file
 vim.keymap.set("n", "<leader>gb", "<Cmd>e#<CR>", { desc = "Go to previous buffer" })

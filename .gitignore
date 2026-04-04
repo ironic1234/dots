@@ -1,6 +1,6 @@
 .DS_Store
-macconfig/nvim/lazy-lock.json
-linuxconfig/nvim/lazy-lock.json
+macconfig/nvim/nvim-pack-lock.json
+linuxconfig/nvim/nvim-pack-lock.json
 macconfig/kitty/kitty.conf.bak
 vim/plugged
 pi/agent/auth.json

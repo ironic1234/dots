@@ -1,19 +1,17 @@
-return {
-	"folke/snacks.nvim",
-	priority = 1000,
-	opts = {
-		image = {
-			enabled = true,
-			doc = {
-				inline = true,
-				float = false,
-				conceal = function()
-					return false
-				end,
-			},
-			math = {
-				enabled = false,
-			},
+vim.pack.add({ "https://github.com/folke/snacks.nvim" }, { confirm = false, load = true })
+
+require("snacks").setup({
+	image = {
+		enabled = true,
+		doc = {
+			inline = true,
+			float = false,
+			conceal = function()
+				return false
+			end,
+		},
+		math = {
+			enabled = false,
 		},
 	},
-}
+})

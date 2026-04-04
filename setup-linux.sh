@@ -261,7 +261,7 @@ link "$DOTS/linuxconfig/opencode"   "$HOME_DIR/.config/opencode"
 # ═══════════════════════════════════════════════════════
 info "Installing Neovim plugins..."
 if command_exists nvim; then
-    nvim --headless "+Lazy! sync" +qa 2>/dev/null || true
+    nvim --headless "+lua vim.pack.update(nil, { force = true })" +qa 2>/dev/null || true
     ok "Neovim plugins synced"
 else
     warn "nvim not found, skipping plugin install"
@@ -290,6 +290,6 @@ echo "  4. If on NVIDIA, ensure /etc/mkinitcpio.conf has MODULES=(nvidia nvidia_
 echo "     Then run: sudo mkinitcpio -P"
 echo "  5. Set your wallpaper at ~/Pictures/CatppuccinMocha-Kurzgesagt-BlackHole3.png"
 echo "     (or update hyprland.conf and hyprpaper.conf to point to your actual wallpaper)"
-echo "  6. Open Neovim and run :Lazy sync if plugins didn't install"
+echo "  6. Open Neovim and run :lua vim.pack.update() if plugins didn't install"
 echo "  7. Configure your monitor layout in ~/.config/hypr/monitors.conf"
 echo "  8. If audio doesn't work: wpctl status and pavucontrol to check PipeWire"

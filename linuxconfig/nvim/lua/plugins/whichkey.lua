@@ -1,18 +1,11 @@
-return {
-	"folke/which-key.nvim",
-	event = "VeryLazy",
-	opts = {
-		win = {
-			border = "rounded",
-		},
+vim.pack.add({ "https://github.com/folke/which-key.nvim" }, { confirm = false, load = true })
+
+require("which-key").setup({
+	win = {
+		border = "rounded",
 	},
-	keys = {
-		{
-			"<leader>?",
-			function()
-				require("which-key").show({ global = false })
-			end,
-			desc = "Buffer Local Keymaps (which-key)",
-		},
-	},
-}
+})
+
+vim.keymap.set("n", "<leader>?", function()
+	require("which-key").show({ global = false })
+end, { desc = "Buffer Local Keymaps (which-key)" })
