@@ -13,7 +13,6 @@ return {
 				"lua_ls",
 				"rust_analyzer",
 				"ty",
-				"texlab",
 				"tsgo",
 				"neocmake",
 				"verible",
@@ -114,7 +113,6 @@ return {
 	{
 		"folke/lazydev.nvim",
 		ft = "lua",
-		event = { "BufReadPre", "BufNewFile" },
 		opts = {
 			library = {
 				{ path = "luvit-meta/library", words = { "vim%.uv" } },
@@ -125,14 +123,11 @@ return {
 	{
 		"https://git.sr.ht/~whynothugo/lsp_lines.nvim",
 		event = { "BufReadPre", "BufNewFile" },
-		config = function()
-			require("lsp_lines").setup()
-		end,
+		opts = {},
 	},
 
 	{
 		"Bilal2453/luvit-meta",
-		event = { "BufReadPre", "BufNewFile" },
 		lazy = true,
 	},
 

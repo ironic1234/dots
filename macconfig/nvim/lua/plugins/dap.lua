@@ -12,7 +12,6 @@ return {
 		dap.adapters["lldb-dap"] = {
 			type = "executable",
 			command = vim.fn.exepath("lldb-dap"),
-			name = "lldb-dap",
 		}
 
 		dap.configurations.cpp = {

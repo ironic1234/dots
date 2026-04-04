@@ -4,13 +4,13 @@ return {
 		"nvim-neotest/nvim-nio",
 		"rcarriga/nvim-dap-ui",
 	},
+	event = { "BufEnter" },
 	config = function()
 		local dap = require("dap")
 
 		dap.adapters["lldb-dap"] = {
 			type = "executable",
 			command = vim.fn.exepath("lldb-dap"),
-			name = "lldb-dap",
 		}
 
 		dap.configurations.cpp = {
@@ -35,7 +35,8 @@ return {
 		-- Adapter: Python with debugpy using virtualenv Python
 		dap.adapters.python = {
 			type = "executable",
-			command = vim.fn.exepath("python3"),
+			command = vim.fn.getenv("VIRTUAL_ENV") and (vim.fn.getenv("VIRTUAL_ENV") .. "/bin/python")
+				or vim.fn.exepath("python3"),
 			args = { "-m", "debugpy.adapter" },
 		}
 
@@ -46,7 +47,13 @@ return {
 				name = "Launch Python File",
 				program = "${file}",
 				pythonPath = function()
-					return vim.fn.exepath("python3") or "python3"
+					-- Use VIRTUAL_ENV/bin/python if it exists
+					local venv = os.getenv("VIRTUAL_ENV")
+					if venv then
+						return venv .. "/bin/python"
+					else
+						return vim.fn.exepath("python3") or "python3"
+					end
 				end,
 			},
 		}

@@ -3,7 +3,5 @@ return {
 	branch = "main",
 	lazy = false,
 	build = ":TSUpdate",
-	config = function()
-		require("nvim-treesitter").setup()
-	end,
+	opts = {},
 }

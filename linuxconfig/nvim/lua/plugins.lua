@@ -24,15 +24,14 @@ require("lazy").setup({
 	require("plugins.oil"),
 	require("plugins.surround"),
 	require("plugins.neogit"),
-	require("plugins.undotree"),
-	require("plugins.zen-mode"),
 	require("plugins.go-up"),
 	require("plugins.dap"),
 	require("plugins.teamtype"),
 	require("plugins.dropbar"),
+	require("plugins.markdown"),
+	require("plugins.zen-mode"),
 	require("plugins.fidget"),
 	require("plugins.whichkey"),
-	require("plugins.markdown"),
 }, {
 	ui = {
 		border = "rounded",
