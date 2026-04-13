@@ -91,7 +91,16 @@ refresh_exports() {
 }
 
 commit_if_needed() {
-  git -C "$LIFE_HOME" add task timewarrior exports .gitignore >/dev/null 2>&1 || true
+  local notes_real notes_rel
+  notes_real="$(cd "$NOTES_HOME" 2>/dev/null && pwd -P || true)"
+
+  if [ -n "$notes_real" ] && [[ "$notes_real" == "$LIFE_HOME"/* ]]; then
+    notes_rel="${notes_real#$LIFE_HOME/}"
+    git -C "$LIFE_HOME" add task timewarrior exports .gitignore "$notes_rel" >/dev/null 2>&1 || true
+  else
+    git -C "$LIFE_HOME" add task timewarrior exports .gitignore >/dev/null 2>&1 || true
+  fi
+
   if ! git -C "$LIFE_HOME" diff --cached --quiet; then
     local ts host
     ts="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
