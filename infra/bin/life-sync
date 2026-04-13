@@ -1,0 +1,191 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+LIFE_HOME="${LIFE_HOME:-$HOME/.local/share/life}"
+NOTES_HOME="${NOTES_HOME:-$HOME/notes}"
+LIFE_REMOTE="${LIFE_REMOTE:-origin}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+usage() {
+  cat <<'EOF'
+life-sync - sync personal task/time/notes data via git
+
+Usage:
+  life-sync init [remote-url]
+  life-sync status
+  life-sync pull
+  life-sync push
+  life-sync sync
+
+Environment:
+  LIFE_HOME   Directory with task/time sync data (default: ~/.local/share/life)
+  NOTES_HOME  Directory with markdown notes (default: ~/notes)
+  LIFE_REMOTE Git remote name (default: origin)
+EOF
+}
+
+ensure_layout() {
+  mkdir -p "$LIFE_HOME/task" "$LIFE_HOME/timewarrior" "$LIFE_HOME/exports"
+  mkdir -p "$NOTES_HOME"
+}
+
+ensure_git_identity() {
+  local host
+  host="$(hostname -s 2>/dev/null || hostname)"
+
+  if ! git -C "$LIFE_HOME" config user.name >/dev/null; then
+    git -C "$LIFE_HOME" config user.name "${LIFE_GIT_NAME:-$USER}"
+  fi
+
+  if ! git -C "$LIFE_HOME" config user.email >/dev/null; then
+    git -C "$LIFE_HOME" config user.email "${LIFE_GIT_EMAIL:-${USER}@${host}.local}"
+  fi
+}
+
+ensure_repo() {
+  ensure_layout
+  if [ ! -d "$LIFE_HOME/.git" ]; then
+    echo "[life-sync] Initializing git repo at $LIFE_HOME"
+    git -C "$LIFE_HOME" init -b main >/dev/null
+    cat >"$LIFE_HOME/.gitignore" <<'EOF'
+*.swp
+.DS_Store
+EOF
+    touch "$NOTES_HOME/inbox.md"
+    ensure_git_identity
+    git -C "$LIFE_HOME" add .gitignore
+    git -C "$LIFE_HOME" commit -m "Initialize life repo" >/dev/null
+  fi
+}
+
+current_branch() {
+  git -C "$LIFE_HOME" symbolic-ref --quiet --short HEAD 2>/dev/null || echo "main"
+}
+
+has_remote() {
+  git -C "$LIFE_HOME" remote get-url "$LIFE_REMOTE" >/dev/null 2>&1
+}
+
+run_notes_index() {
+  if command -v notes-index >/dev/null 2>&1; then
+    NOTES_HOME="$NOTES_HOME" notes-index --notes-dir "$NOTES_HOME" >/dev/null || true
+  elif [ -x "$SCRIPT_DIR/notes-index" ]; then
+    NOTES_HOME="$NOTES_HOME" "$SCRIPT_DIR/notes-index" --notes-dir "$NOTES_HOME" >/dev/null || true
+  fi
+
+  if [ -f "$NOTES_HOME/.index/notes-index.jsonl" ]; then
+    cp "$NOTES_HOME/.index/notes-index.jsonl" "$LIFE_HOME/exports/notes-index.jsonl"
+  fi
+}
+
+refresh_exports() {
+  mkdir -p "$LIFE_HOME/exports"
+
+  if command -v task >/dev/null 2>&1; then
+    task rc.data.location="$LIFE_HOME/task" export >"$LIFE_HOME/exports/task.json" || true
+  fi
+
+  if command -v timew >/dev/null 2>&1; then
+    timew rc.data.location="$LIFE_HOME/timewarrior" export >"$LIFE_HOME/exports/timewarrior.json" || true
+  fi
+}
+
+commit_if_needed() {
+  git -C "$LIFE_HOME" add task timewarrior exports .gitignore >/dev/null 2>&1 || true
+  if ! git -C "$LIFE_HOME" diff --cached --quiet; then
+    local ts host
+    ts="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+    host="$(hostname -s 2>/dev/null || hostname)"
+    ensure_git_identity
+    git -C "$LIFE_HOME" commit -m "life sync ${host} ${ts}" >/dev/null
+    echo "[life-sync] Committed local life changes"
+  fi
+}
+
+do_pull() {
+  if ! has_remote; then
+    echo "[life-sync] No '$LIFE_REMOTE' remote configured, skipping pull"
+    return
+  fi
+  git -C "$LIFE_HOME" pull --rebase --autostash "$LIFE_REMOTE" "$(current_branch)"
+}
+
+do_push() {
+  if ! has_remote; then
+    echo "[life-sync] No '$LIFE_REMOTE' remote configured, skipping push"
+    return
+  fi
+  git -C "$LIFE_HOME" push "$LIFE_REMOTE" "$(current_branch)"
+}
+
+cmd_init() {
+  ensure_repo
+
+  if [ "${1:-}" != "" ]; then
+    if has_remote; then
+      git -C "$LIFE_HOME" remote set-url "$LIFE_REMOTE" "$1"
+    else
+      git -C "$LIFE_HOME" remote add "$LIFE_REMOTE" "$1"
+    fi
+    echo "[life-sync] Set remote '$LIFE_REMOTE' => $1"
+  fi
+
+  echo "[life-sync] LIFE_HOME=$LIFE_HOME"
+  echo "[life-sync] NOTES_HOME=$NOTES_HOME"
+  echo "[life-sync] Done."
+}
+
+cmd_status() {
+  ensure_repo
+  git -C "$LIFE_HOME" status -sb
+}
+
+cmd_pull() {
+  ensure_repo
+  do_pull
+  run_notes_index
+  refresh_exports
+  commit_if_needed
+}
+
+cmd_push() {
+  ensure_repo
+  run_notes_index
+  refresh_exports
+  commit_if_needed
+  do_push
+}
+
+cmd_sync() {
+  ensure_repo
+  run_notes_index
+  refresh_exports
+  commit_if_needed
+  do_pull
+  run_notes_index
+  refresh_exports
+  commit_if_needed
+  do_push
+  cmd_status
+}
+
+main() {
+  local command="${1:-sync}"
+  shift || true
+
+  case "$command" in
+    init) cmd_init "$@" ;;
+    status) cmd_status ;;
+    pull) cmd_pull ;;
+    push) cmd_push ;;
+    sync) cmd_sync ;;
+    -h|--help|help) usage ;;
+    *)
+      echo "Unknown command: $command" >&2
+      usage
+      exit 1
+      ;;
+  esac
+}
+
+main "$@"

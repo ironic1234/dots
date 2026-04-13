@@ -146,6 +146,8 @@ brew_install fastfetch
 brew_install ncdu
 brew_install pstree
 brew_install htop
+brew_install task
+brew_install timewarrior
 
 # Media
 brew_install ffmpeg
@@ -309,7 +311,14 @@ link "$DOTS/macconfig/borders"      "$HOME_DIR/.config/borders"
 link "$DOTS/macconfig/opencode"     "$HOME_DIR/.config/opencode"
 
 # Pi
-link "$DOTS/pi"           "$HOME_DIR/.pi"
+link "$DOTS/pi"                     "$HOME_DIR/.pi"
+
+# Life infra configs
+mkdir -p "$HOME_DIR/.timewarrior" "$HOME_DIR/.local/bin"
+link "$DOTS/taskrc"                    "$HOME_DIR/.taskrc"
+link "$DOTS/timewarrior.cfg"            "$HOME_DIR/.timewarrior/timewarrior.cfg"
+link "$DOTS/infra/bin/life-sync"     "$HOME_DIR/.local/bin/life-sync"
+link "$DOTS/infra/bin/notes-index"   "$HOME_DIR/.local/bin/notes-index"
 
 # Mofi
 link "$DOTS/macconfig/mofi"         "$HOME_DIR/.config/mofi"

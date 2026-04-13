@@ -135,6 +135,8 @@ yay_install fastfetch
 yay_install ncdu
 yay_install pstree
 yay_install htop
+yay_install task
+yay_install timewarrior
 
 # ── Wayland-specific utilities ────────────────────────
 info "Installing Wayland utilities..."
@@ -255,6 +257,16 @@ link "$DOTS/linuxconfig/rofi"       "$HOME_DIR/.config/rofi"
 
 # OpenCode
 link "$DOTS/linuxconfig/opencode"   "$HOME_DIR/.config/opencode"
+
+# Pi
+link "$DOTS/pi"                     "$HOME_DIR/.pi"
+
+# Life infra configs
+mkdir -p "$HOME_DIR/.timewarrior" "$HOME_DIR/.local/bin"
+link "$DOTS/taskrc"                         "$HOME_DIR/.taskrc"
+link "$DOTS/timewarrior.cfg"                  "$HOME_DIR/.timewarrior/timewarrior.cfg"
+link "$DOTS/infra/bin/life-sync"          "$HOME_DIR/.local/bin/life-sync"
+link "$DOTS/infra/bin/notes-index"        "$HOME_DIR/.local/bin/notes-index"
 
 # ═══════════════════════════════════════════════════════
 #  5. NEOVIM PLUGINS

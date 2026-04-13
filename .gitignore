@@ -5,3 +5,5 @@ macconfig/kitty/kitty.conf.bak
 vim/plugged
 pi/agent/auth.json
 pi/agent/sessions
+__pycache__/
+*.pyc
