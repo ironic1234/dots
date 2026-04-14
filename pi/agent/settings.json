@@ -1,8 +1,9 @@
 {
-  "lastChangelogVersion": "0.66.1",
-  "defaultProvider": "opencode",
-  "defaultModel": "minimax-m2.5-free",
+  "lastChangelogVersion": "0.67.1",
+  "defaultProvider": "openai-codex",
+  "defaultModel": "gpt-5.3-codex",
   "defaultThinkingLevel": "high",
   "hideThinkingBlock": false,
-  "enableSkillCommands": true
+  "enableSkillCommands": true,
+  "theme": "catppuccin-mocha"
 }
