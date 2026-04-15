@@ -79,7 +79,7 @@ yay_install rofi
 # Hyprland utilities
 yay_install hyprlock
 yay_install hyprpaper
-yay_install awww-bin  # animated wallpaper (AUR)
+yay_install awww-git  # animated wallpaper (AUR)
 yay_install uwsm  # universal wayland session manager
 
 # ── Terminal & shell ───────────────────────────────────
@@ -126,7 +126,7 @@ yay_install pkgconf
 
 # ── CLI utilities ──────────────────────────────────────
 info "Installing CLI utilities..."
-yay_install gh
+yay_install github-cli
 yay_install git
 yay_install jq
 yay_install wget
@@ -135,8 +135,6 @@ yay_install fastfetch
 yay_install ncdu
 yay_install pstree
 yay_install htop
-yay_install task
-yay_install timewarrior
 
 # ── Wayland-specific utilities ────────────────────────
 info "Installing Wayland utilities..."

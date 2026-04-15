@@ -1,0 +1,21 @@
+{
+  "name": "playwright-firefox-skill",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "setup": "playwright-cli install-browser firefox || bunx @microsoft/playwright-cli install-browser firefox",
+    "open": "bash scripts/open-firefox.sh",
+    "open:headless": "bash scripts/open-firefox.sh --headless",
+    "act": "bash scripts/act-session.sh",
+    "screenshot": "bash scripts/screenshot-session.sh",
+    "snapshot": "bash scripts/snapshot-session.sh",
+    "close": "bash scripts/close-session.sh",
+    "sessions": "bash scripts/pw-cli.sh list",
+    "close-all": "bash scripts/pw-cli.sh close-all",
+    "capture": "bash scripts/capture-firefox.sh",
+    "capture:headed": "bash scripts/capture-firefox.sh --headed",
+    "profiles": "bash scripts/list-profiles.sh",
+    "profile-path": "bash scripts/profile-path.sh",
+    "codegen": "bash scripts/pw-cli.sh codegen --browser firefox"
+  }
+}

@@ -146,8 +146,6 @@ brew_install fastfetch
 brew_install ncdu
 brew_install pstree
 brew_install htop
-brew_install task
-brew_install timewarrior
 
 # Media
 brew_install ffmpeg
