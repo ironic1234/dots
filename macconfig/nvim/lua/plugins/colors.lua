@@ -33,4 +33,8 @@ require("catppuccin").setup({
 })
 
 vim.cmd.colorscheme("catppuccin")
-require("rainbow-delimiters.setup").setup({})
+require("rainbow-delimiters.setup").setup({
+	blacklist = {
+		"svelte",
+	},
+})

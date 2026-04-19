@@ -151,7 +151,7 @@ Text Editor of choice
     - [Lualine](https://github.com/nvim-lualine/lualine.nvim) - Status bar
     - [Dropbar](https://github.com/Bekaboo/dropbar.nvim) - Breadcrumb winbar
     - [Fidget](https://github.com/j-hui/fidget.nvim) - LSP progress spinner
-    - [Snacks](https://github.com/folke/snacks.nvim) - Image rendering & utilities
+    - [image.nvim](https://github.com/3rd/image.nvim) - Image rendering
     - [Which-Key](https://github.com/folke/which-key.nvim) - Keymap popup
     - [Rainbow Delimiters](https://gitlab.com/HiPhish/rainbow-delimiters.nvim) - Rainbow brackets
     - [Zen Mode](https://github.com/folke/zen-mode.nvim) - Distraction-free mode

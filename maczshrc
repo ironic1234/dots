@@ -273,3 +273,5 @@ alias :qa='killall kitty'
 
 # Virtual environment
 [[ -f ~/.venv/bin/activate ]] && source ~/.venv/bin/activate
+
+export PATH=$PATH:/Users/ronak/.spicetify
