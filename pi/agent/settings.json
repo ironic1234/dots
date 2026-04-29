@@ -1,9 +1,10 @@
 {
-  "lastChangelogVersion": "0.67.68",
+  "lastChangelogVersion": "0.70.6",
   "defaultProvider": "openai-codex",
-  "defaultModel": "gpt-5.3-codex",
-  "defaultThinkingLevel": "high",
-  "hideThinkingBlock": false,
+  "defaultModel": "gpt-5.5",
+  "defaultThinkingLevel": "off",
+  "hideThinkingBlock": true,
   "enableSkillCommands": true,
-  "theme": "catppuccin-mocha"
+  "theme": "catppuccin-mocha",
+  "packages": []
 }

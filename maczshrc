@@ -153,6 +153,9 @@ zle -N self-insert url-quote-magic
 source /opt/homebrew/share/zsh-autosuggestions/zsh-autosuggestions.zsh
 ZSH_AUTOSUGGEST_STRATEGY=(completion)
 
+# command-pad: multiline command editing helpers
+source "$HOME/coding/projects/command-pad/command-pad.plugin.zsh"
+
 # zsh-syntax-highlighting (must be last)
 source /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 
