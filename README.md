@@ -13,7 +13,7 @@ git clone https://github.com/ronak/dots.git ~/dots
 cd ~/dots && ./setup-mac.sh
 ```
 
-The script installs everything: Homebrew, packages, Oh My Zsh, plugins, symlinks, Neovim plugins, services, and macOS defaults.
+The script installs everything: Homebrew, packages, zsh plugins, symlinks, Neovim plugins, services, and macOS defaults.
 
 ### Linux (Arch)
 
@@ -22,7 +22,7 @@ git clone https://github.com/ronak/dots.git ~/dots
 cd ~/dots && ./setup-linux.sh
 ```
 
-The script installs everything: yay packages, Oh My Zsh, plugins, symlinks, Neovim plugins, and Wayland session config.
+The script installs everything: yay packages, zsh plugins, symlinks, Neovim plugins, and Wayland session config.
 
 ## Repository layout
 - `macconfig/` – macOS services, keybindings, and status bar configs.
@@ -68,8 +68,7 @@ The script installs everything: yay packages, Oh My Zsh, plugins, symlinks, Neov
 | **Productivity** | tailscale-app, slack@beta, thunderbird, transmission |
 
 ### Shell Setup (both macOS & Linux)
-- [Oh My Zsh](https://github.com/ohmyzsh/ohmyzsh) with plugins: git, zsh-autosuggestions, zsh-syntax-highlighting
-- [Catppuccin Mocha](https://github.com/catppuccin/zsh-syntax-highlighting) syntax highlighting theme
+- zsh plugins installed directly through the system package manager: zsh-autosuggestions and zsh-syntax-highlighting
 - [fzf](https://github.com/junegunn/fzf) fuzzy finder with Catppuccin colors
 - [vivid](https://github.com/sharkdp/vivid) LS_COLORS with Catppuccin Mocha
 - [eza](https://github.com/eza-community/eza) as `ls` replacement with icons
@@ -201,8 +200,7 @@ Terminal emulator of choice
 - [Hack Nerd Font Mono](https://github.com/ryanoasis/nerd-fonts)
 ## [zsh](https://www.zsh.org/)
 Shell of choice
-- [Oh-my-zsh](https://github.com/ohmyzsh/ohmyzsh) for configuration
-- Git, syntax highlighting, autosuggestions, and interactive cd plugins.
+- Syntax highlighting, autosuggestions, and interactive cd plugins.
 - alanpeabody prompt
 ## [Yabai](https://github.com/koekeishiya/yabai)
 Tiling window manager for MacOS

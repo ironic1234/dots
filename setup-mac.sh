@@ -97,6 +97,8 @@ brew_install borders
 # Terminal & shell
 brew_install kitty
 brew_install zsh
+brew_install zsh-autosuggestions
+brew_install zsh-syntax-highlighting
 brew_install eza
 brew_install fzf
 brew_install fd
@@ -237,48 +239,7 @@ else
 fi
 
 # ═══════════════════════════════════════════════════════
-#  2. OH MY ZSH
-# ═══════════════════════════════════════════════════════
-info "Setting up Oh My Zsh..."
-if [ ! -d "$HOME_DIR/.oh-my-zsh" ]; then
-    info "Installing Oh My Zsh..."
-    RUNZSH=no KEEP_ZSHRC=yes sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
-else
-    ok "Oh My Zsh already installed"
-fi
-
-ZSH_CUSTOM="${ZSH_CUSTOM:-$HOME_DIR/.oh-my-zsh/custom}"
-
-# zsh-autosuggestions
-if [ ! -d "$ZSH_CUSTOM/plugins/zsh-autosuggestions" ]; then
-    info "Installing zsh-autosuggestions..."
-    git clone https://github.com/zsh-users/zsh-autosuggestions "$ZSH_CUSTOM/plugins/zsh-autosuggestions"
-else
-    ok "zsh-autosuggestions"
-fi
-
-# zsh-syntax-highlighting
-if [ ! -d "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" ]; then
-    info "Installing zsh-syntax-highlighting..."
-    git clone https://github.com/zsh-users/zsh-syntax-highlighting "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting"
-else
-    ok "zsh-syntax-highlighting"
-fi
-
-# Catppuccin zsh syntax highlighting theme
-info "Setting up Catppuccin zsh theme..."
-mkdir -p "$HOME_DIR/.zsh"
-if [ ! -f "$HOME_DIR/.zsh/catppuccin_mocha-zsh-syntax-highlighting.zsh" ]; then
-    info "Downloading Catppuccin Mocha zsh-syntax-highlighting theme..."
-    curl -fsSL \
-        "https://raw.githubusercontent.com/catppuccin/zsh-syntax-highlighting/main/themes/catppuccin_mocha-zsh-syntax-highlighting.zsh" \
-        -o "$HOME_DIR/.zsh/catppuccin_mocha-zsh-syntax-highlighting.zsh"
-else
-    ok "Catppuccin zsh theme"
-fi
-
-# ═══════════════════════════════════════════════════════
-#  3. PYTHON VENV
+#  2. PYTHON VENV
 # ═══════════════════════════════════════════════════════
 info "Setting up Python venv..."
 if [ ! -d "$HOME_DIR/.venv" ]; then
@@ -289,7 +250,7 @@ else
 fi
 
 # ═══════════════════════════════════════════════════════
-#  4. SYMLINKS
+#  3. SYMLINKS
 # ═══════════════════════════════════════════════════════
 info "Symlinking dotfiles..."
 
@@ -337,7 +298,7 @@ link "$DOTS/macconfig/mofi"         "$HOME_DIR/.config/mofi"
 link "$DOTS/zathura"                "$HOME_DIR/.config/zathura"
 
 # ═══════════════════════════════════════════════════════
-#  5. NEOVIM PLUGINS
+#  4. NEOVIM PLUGINS
 # ═══════════════════════════════════════════════════════
 info "Installing Neovim plugins..."
 if command_exists nvim; then
@@ -348,7 +309,7 @@ else
 fi
 
 # ═══════════════════════════════════════════════════════
-#  6. START SERVICES
+#  5. START SERVICES
 # ═══════════════════════════════════════════════════════
 info "Starting services..."
 
@@ -388,7 +349,7 @@ else
 fi
 
 # ═══════════════════════════════════════════════════════
-#  7. MACOS DEFAULTS (optional rice tweaks)
+#  6. MACOS DEFAULTS (optional rice tweaks)
 # ═══════════════════════════════════════════════════════
 info "Applying macOS defaults..."
 

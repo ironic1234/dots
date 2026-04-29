@@ -156,11 +156,11 @@ ZSH_AUTOSUGGEST_STRATEGY=(completion)
 # command-pad: multiline command editing helpers
 source "$HOME/coding/projects/command-pad/command-pad.plugin.zsh"
 
+# FZF
+{ eval "$(fzf --zsh)"; } 2>/dev/null
+
 # zsh-syntax-highlighting (must be last)
 source /opt/homebrew/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-
-# FZF
-eval "$(fzf --zsh)"
 
 # Docker completions
 fpath=(~/.docker/completions $fpath)

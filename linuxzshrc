@@ -135,11 +135,11 @@ zle -N self-insert url-quote-magic
 source /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
 ZSH_AUTOSUGGEST_STRATEGY=(completion)
 
+# FZF
+{ eval "$(fzf --zsh)"; } 2>/dev/null
+
 # zsh-syntax-highlighting (must be last)
 source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-
-# FZF
-eval "$(fzf --zsh)"
 
 # -----------------------------------------------------------------------------
 # Functions
