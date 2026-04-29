@@ -83,6 +83,7 @@ brew update
 # ── Taps ───────────────────────────────────────────────
 info "Adding Homebrew taps..."
 brew tap felixkratz/formulae 2>/dev/null && ok "felixkratz/formulae" || ok "felixkratz/formulae (already tapped)"
+brew tap homebrew-zathura/zathura 2>/dev/null && ok "homebrew-zathura/zathura" || ok "homebrew-zathura/zathura (already tapped)"
 
 # ── Formulae ───────────────────────────────────────────
 info "Installing Homebrew formulae..."
@@ -152,6 +153,24 @@ brew_install ffmpeg
 brew_install yt-dlp
 brew_install mpv
 brew_install imagemagick
+
+# Document viewers
+brew_install zathura
+brew_install zathura-pdf-mupdf
+
+# Configure Zathura plugin discovery and app bundle
+info "Configuring Zathura..."
+ZATHURA_PLUGIN_DIR="$(brew --prefix zathura)/lib/zathura"
+ZATHURA_MUPDF_PLUGIN="$(brew --prefix zathura-pdf-mupdf)/libpdf-mupdf.dylib"
+mkdir -p "$ZATHURA_PLUGIN_DIR"
+if [ -f "$ZATHURA_MUPDF_PLUGIN" ]; then
+    ln -sf "$ZATHURA_MUPDF_PLUGIN" "$ZATHURA_PLUGIN_DIR/"
+    ok "zathura-pdf-mupdf plugin linked"
+else
+    warn "zathura-pdf-mupdf plugin not found"
+fi
+curl -fsSL "https://raw.githubusercontent.com/homebrew-zathura/homebrew-zathura/refs/heads/master/convert-into-app.sh" | sh
+ok "Zathura app bundle updated"
 
 # Misc
 brew_install spicetify-cli
@@ -313,6 +332,9 @@ link "$DOTS/pi"                     "$HOME_DIR/.pi"
 
 # Mofi
 link "$DOTS/macconfig/mofi"         "$HOME_DIR/.config/mofi"
+
+# Zathura
+link "$DOTS/zathura"                "$HOME_DIR/.config/zathura"
 
 # ═══════════════════════════════════════════════════════
 #  5. NEOVIM PLUGINS

@@ -158,6 +158,11 @@ yay_install yt-dlp
 yay_install mpv
 yay_install imagemagick
 
+# ── Document viewers ──────────────────────────────────
+info "Installing document viewers..."
+yay_install zathura
+yay_install zathura-pdf-mupdf
+
 # ── AUR packages ──────────────────────────────────────
 info "Installing AUR packages..."
 yay_install visual-studio-code-bin
@@ -252,6 +257,9 @@ link "$DOTS/linuxconfig/niri"       "$HOME_DIR/.config/niri"
 
 # Rofi
 link "$DOTS/linuxconfig/rofi"       "$HOME_DIR/.config/rofi"
+
+# Zathura
+link "$DOTS/zathura"                "$HOME_DIR/.config/zathura"
 
 # OpenCode
 link "$DOTS/linuxconfig/opencode"   "$HOME_DIR/.config/opencode"
