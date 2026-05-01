@@ -5,8 +5,6 @@ theme = Catppuccin Mocha
 window-padding-x = 10
 window-padding-y = 8
 
-macos-titlebar-style = hidden
-
 background-opacity = 0.8
 background-blur = true
 
