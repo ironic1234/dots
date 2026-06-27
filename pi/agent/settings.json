@@ -1,8 +1,8 @@
 {
-  "lastChangelogVersion": "0.74.0",
-  "defaultProvider": "openai-codex",
-  "defaultModel": "gpt-5.5",
-  "defaultThinkingLevel": "off",
+  "lastChangelogVersion": "0.80.2",
+  "defaultProvider": "opencode",
+  "defaultModel": "mimo-v2.5-free",
+  "defaultThinkingLevel": "minimal",
   "hideThinkingBlock": true,
   "enableSkillCommands": true,
   "theme": "catppuccin-mocha",
