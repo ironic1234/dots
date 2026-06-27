@@ -1,6 +1,6 @@
 vim.pack.add({
 	"https://github.com/nvim-telescope/telescope-fzf-native.nvim",
-	-- "https://github.com/Bekaboo/dropbar.nvim",
+	"https://github.com/Bekaboo/dropbar.nvim",
 }, { confirm = false, load = true })
 
 local fzf_native_path = vim.fn.stdpath("data") .. "/site/pack/core/opt/telescope-fzf-native.nvim"
