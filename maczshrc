@@ -278,3 +278,6 @@ alias :qa='killall kitty'
 [[ -f ~/.venv/bin/activate ]] && source ~/.venv/bin/activate
 
 export PATH=$PATH:/Users/ronak/.spicetify
+
+# bun completions
+[ -s "/Users/ronak/.bun/_bun" ] && source "/Users/ronak/.bun/_bun"
