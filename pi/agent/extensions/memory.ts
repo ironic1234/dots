@@ -10,7 +10,8 @@ import { Type } from "typebox";
 const STORE_VERSION = 1;
 const MAX_MEMORY_CONTENT = 20_000;
 const MAX_RETURNED_CONTENT = 4_000;
-const DEFAULT_LIMIT = 20;
+const MAX_SEARCH_CONTENT = 1_200;
+const DEFAULT_LIMIT = 5;
 
 type MemoryAction = "create" | "edit" | "retrieve";
 
@@ -43,7 +44,7 @@ const MemoryParams = Type.Object({
   content: Type.Optional(Type.String({ description: "The memory content for create or edit" })),
   tags: Type.Optional(Type.Array(Type.String(), { description: "Optional searchable tags" })),
   query: Type.Optional(Type.String({ description: "Case-insensitive terms to search in ids, titles, content, and tags" })),
-  limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 50, description: "Maximum memories to return for retrieve" })),
+  limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 10, description: "Maximum memories to return for retrieve" })),
 });
 
 function memoryFilePath(): string {
@@ -130,13 +131,15 @@ async function writeStore(file: string, store: MemoryStore): Promise<void> {
   }
 }
 
-function publicMemory(memory: Memory): Memory {
+function publicMemory(memory: Memory, maxContent = MAX_RETURNED_CONTENT): Memory {
   return {
     ...memory,
     content:
-      memory.content.length > MAX_RETURNED_CONTENT
-        ? `${memory.content.slice(0, MAX_RETURNED_CONTENT)}… [content truncated]`
-        : memory.content,
+      maxContent === 0
+        ? "[content omitted; search with a focused query or retrieve by id]"
+        : memory.content.length > maxContent
+          ? `${memory.content.slice(0, maxContent)}… [content truncated]`
+          : memory.content,
   };
 }
 
@@ -165,13 +168,17 @@ function textResult(text: string, details: MemoryDetails) {
 }
 
 export default function memoryExtension(pi: ExtensionAPI): void {
+  pi.on("before_agent_start", (event) => ({
+    systemPrompt: `${event.systemPrompt}\n\n[MEMORY CAPABILITY] Persistent memory is available through the memory tool. Use action=retrieve with a focused query or known id; memory contents are never loaded automatically, and broad retrieval should be avoided unless specifically needed.`,
+  }));
+
   pi.registerTool({
     name: "memory",
     label: "Memory",
     description: "Create, edit, or retrieve persistent memories stored in a local JSON file. Retrieve before editing when you do not already know a memory id.",
     promptSnippet: "Create, edit, and retrieve persistent user memories",
     promptGuidelines: [
-      "Use memory with action=retrieve when relevant persistent context may exist; do not assume memory contents without retrieving them.",
+      "Use memory with action=retrieve when relevant persistent context may exist; prefer a focused query or known id and a small limit rather than retrieving the whole store.",
       "Use memory with action=create for durable facts, preferences, decisions, or project context the user wants remembered.",
       "Use memory with action=edit only after retrieving the target memory or when its exact id is already known.",
     ],
@@ -231,16 +238,26 @@ export default function memoryExtension(pi: ExtensionAPI): void {
           });
         }
 
-        const memories = retrieveMemories(store, params.id, params.query, params.limit ?? DEFAULT_LIMIT).map(publicMemory);
-        if (memories.length === 0) {
+        const limit = params.limit ?? DEFAULT_LIMIT;
+        const query = params.query?.trim();
+        const matches = retrieveMemories(store, params.id, query, limit);
+        if (matches.length === 0) {
           return textResult("No memories found.", { action: params.action, file, memories: [], count: 0 });
         }
 
+        const isFocused = Boolean(params.id || query);
+        const memories = matches.map((memory) => publicMemory(memory, isFocused ? MAX_SEARCH_CONTENT : 0));
         const lines = memories.map((memory) => {
           const tags = memory.tags.length > 0 ? ` [${memory.tags.join(", ")}]` : "";
-          return `- ${memory.id}: ${memory.title}${tags}\n  ${memory.content}`;
+          return isFocused
+            ? `- ${memory.id}: ${memory.title}${tags}\n  ${memory.content}`
+            : `- ${memory.id}: ${memory.title}${tags}`;
         });
-        return textResult(`Found ${memories.length} memor${memories.length === 1 ? "y" : "ies"}:\n${lines.join("\n")}`, {
+        const heading = isFocused
+          ? `Found ${memories.length} memor${memories.length === 1 ? "y" : "ies"}`
+          : `Memory index (${store.memories.length} total; showing ${memories.length})`;
+        const suffix = isFocused ? "" : "\nUse a focused query or id to retrieve memory content.";
+        return textResult(`${heading}:${suffix}\n${lines.join("\n")}`, {
           action: params.action,
           file,
           memories,
