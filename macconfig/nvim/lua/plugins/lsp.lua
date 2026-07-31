@@ -264,17 +264,20 @@ for _, server in ipairs(servers) do
 			settings = {
 				texlab = {
 					build = {
+						executable = "latexmk",
+						args = {
+							"-synctex=1",
+							"-interaction=nonstopmode",
+							"-pdf",
+							"%f",
+						},
 						onSave = true,
 						forwardSearchAfter = true,
 					},
 					forwardSearch = {
-						executable = "displayline",
+						executable = "/Users/ronak/.local/bin/zathura-texlab",
 						args = {
-							"-g",
-							"-r",
-							"%l",
 							"%p",
-							"%f",
 						},
 					},
 				},
