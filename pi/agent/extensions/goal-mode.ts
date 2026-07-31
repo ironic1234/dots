@@ -5,6 +5,7 @@ import { Type } from "typebox";
 const DEFAULT_MAX_ITERATIONS = 32;
 const GOAL_CONTEXT_TYPE = "goal-mode-context";
 const GOAL_STATE_TYPE = "goal-mode-state";
+const GOAL_CAPABILITY_PROMPT = "[GOAL CAPABILITY] The user can start autonomous work with /goal <objective>. When goal mode is active, design explicit verifiable criteria, keep working across turns, and call goal_complete only after every criterion is verified.";
 
 type GoalStatus = "idle" | "active" | "paused" | "completed";
 
@@ -340,15 +341,21 @@ export default function goalModeExtension(pi: ExtensionAPI): void {
     updateUi(ctx);
   });
 
-  pi.on("before_agent_start", async () => {
-    if (state.status !== "active") return;
-    return {
-      message: {
+  pi.on("before_agent_start", async (event) => {
+    const result: {
+      systemPrompt: string;
+      message?: { customType: string; content: string; display: false };
+    } = {
+      systemPrompt: `${event.systemPrompt}\n\n${GOAL_CAPABILITY_PROMPT}`,
+    };
+    if (state.status === "active") {
+      result.message = {
         customType: GOAL_CONTEXT_TYPE,
         content: promptForGoal(),
         display: false,
-      },
-    };
+      };
+    }
+    return result;
   });
 
   pi.on("context", async (event) => {
