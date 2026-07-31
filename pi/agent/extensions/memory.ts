@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { StringEnum } from "@earendil-works/pi-ai";
@@ -7,13 +7,13 @@ import { withFileMutationQueue, type ExtensionAPI } from "@earendil-works/pi-cod
 import { Text } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 
-const STORE_VERSION = 1;
+const STORE_VERSION = 2;
 const MAX_MEMORY_CONTENT = 20_000;
 const MAX_RETURNED_CONTENT = 4_000;
 const MAX_SEARCH_CONTENT = 1_200;
 const DEFAULT_LIMIT = 5;
 
-type MemoryAction = "create" | "edit" | "retrieve";
+type MemoryAction = "create" | "edit" | "retrieve" | "archive" | "restore" | "delete" | "merge" | "stats";
 
 interface Memory {
   id: string;
@@ -22,11 +22,19 @@ interface Memory {
   tags: string[];
   createdAt: string;
   updatedAt: string;
+  archived: boolean;
 }
 
 interface MemoryStore {
   version: number;
   memories: Memory[];
+}
+
+interface MemoryStats {
+  total: number;
+  active: number;
+  archived: number;
+  tagCount: number;
 }
 
 interface MemoryDetails {
@@ -35,15 +43,22 @@ interface MemoryDetails {
   memory?: Memory;
   memories?: Memory[];
   count?: number;
+  deletedId?: string;
+  sourceId?: string;
+  targetId?: string;
+  stats?: MemoryStats;
 }
 
 const MemoryParams = Type.Object({
-  action: StringEnum(["create", "edit", "retrieve"] as const),
-  id: Type.Optional(Type.String({ description: "Memory id, required for edit and optional for retrieve" })),
+  action: StringEnum(["create", "edit", "retrieve", "archive", "restore", "delete", "merge", "stats"] as const),
+  id: Type.Optional(Type.String({ description: "Memory id, required for edit/archive/restore/delete and optional for retrieve" })),
+  sourceId: Type.Optional(Type.String({ description: "Source memory id for merge" })),
+  targetId: Type.Optional(Type.String({ description: "Target memory id for merge; id is accepted as an alias" })),
   title: Type.Optional(Type.String({ description: "Short title for a new or edited memory" })),
   content: Type.Optional(Type.String({ description: "The memory content for create or edit" })),
   tags: Type.Optional(Type.Array(Type.String(), { description: "Optional searchable tags" })),
   query: Type.Optional(Type.String({ description: "Case-insensitive terms to search in ids, titles, content, and tags" })),
+  includeArchived: Type.Optional(Type.Boolean({ description: "Include archived memories in retrieve results" })),
   limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 10, description: "Maximum memories to return for retrieve" })),
 });
 
@@ -94,6 +109,7 @@ function validateStore(value: unknown, file: string): MemoryStore {
       tags: normalizeTags(item.tags),
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
+      archived: item.archived === true,
     };
   });
 
@@ -116,18 +132,16 @@ async function readStore(file: string): Promise<MemoryStore> {
 async function writeStore(file: string, store: MemoryStore): Promise<void> {
   await mkdir(dirname(file), { recursive: true, mode: 0o700 });
   const temporary = `${file}.${process.pid}.${randomUUID()}.tmp`;
+  let moved = false;
   try {
     await writeFile(temporary, `${JSON.stringify({ version: STORE_VERSION, memories: store.memories }, null, 2)}\n`, {
       encoding: "utf8",
       mode: 0o600,
     });
     await rename(temporary, file);
+    moved = true;
   } finally {
-    try {
-      await rename(temporary, file);
-    } catch {
-      // The temporary file was already renamed, or cleanup is not necessary.
-    }
+    if (!moved) await unlink(temporary).catch(() => undefined);
   }
 }
 
@@ -149,11 +163,18 @@ function findMemory(store: MemoryStore, id: string): Memory {
   return memory;
 }
 
-function retrieveMemories(store: MemoryStore, id: string | undefined, query: string | undefined, limit: number): Memory[] {
-  if (id) return store.memories.filter((memory) => memory.id === id).slice(0, 1);
+function retrieveMemories(
+  store: MemoryStore,
+  id: string | undefined,
+  query: string | undefined,
+  limit: number,
+  includeArchived: boolean,
+): Memory[] {
+  const candidates = store.memories.filter((memory) => includeArchived || !memory.archived);
+  if (id) return candidates.filter((memory) => memory.id === id).slice(0, 1);
 
   const terms = (query ?? "").toLowerCase().split(/\s+/).filter(Boolean);
-  return store.memories
+  return candidates
     .filter((memory) => {
       if (terms.length === 0) return true;
       const haystack = [memory.id, memory.title, memory.content, ...memory.tags].join(" ").toLowerCase();
@@ -163,24 +184,34 @@ function retrieveMemories(store: MemoryStore, id: string | undefined, query: str
     .slice(0, limit);
 }
 
+function memoryStats(store: MemoryStore): MemoryStats {
+  return {
+    total: store.memories.length,
+    active: store.memories.filter((memory) => !memory.archived).length,
+    archived: store.memories.filter((memory) => memory.archived).length,
+    tagCount: new Set(store.memories.flatMap((memory) => memory.tags)).size,
+  };
+}
+
 function textResult(text: string, details: MemoryDetails) {
   return { content: [{ type: "text" as const, text }], details };
 }
 
 export default function memoryExtension(pi: ExtensionAPI): void {
   pi.on("before_agent_start", (event) => ({
-    systemPrompt: `${event.systemPrompt}\n\n[MEMORY CAPABILITY] Persistent memory is available through the memory tool. Use action=retrieve with a focused query or known id; memory contents are never loaded automatically, and broad retrieval should be avoided unless specifically needed.`,
+    systemPrompt: `${event.systemPrompt}\n\n[MEMORY CAPABILITY] Persistent memory is available through the memory tool. Use focused retrieve queries or known ids; memory contents are never loaded automatically. The tool also supports explicit archive, restore, delete, merge, and stats maintenance actions.`,
   }));
 
   pi.registerTool({
     name: "memory",
     label: "Memory",
-    description: "Create, edit, or retrieve persistent memories stored in a local JSON file. Retrieve before editing when you do not already know a memory id.",
+    description: "Create, edit, retrieve, archive, restore, delete, merge, and inspect persistent memories stored in a local JSON file. Retrieve before editing when you do not already know a memory id.",
     promptSnippet: "Create, edit, and retrieve persistent user memories",
     promptGuidelines: [
       "Use memory with action=retrieve when relevant persistent context may exist; prefer a focused query or known id and a small limit rather than retrieving the whole store.",
       "Use memory with action=create for durable facts, preferences, decisions, or project context the user wants remembered.",
       "Use memory with action=edit only after retrieving the target memory or when its exact id is already known.",
+      "Use archive/restore/delete/merge/stats only for explicit memory maintenance; merge archives the source after combining it into the target, and stats never returns memory content.",
     ],
     parameters: MemoryParams,
     executionMode: "sequential",
@@ -205,6 +236,7 @@ export default function memoryExtension(pi: ExtensionAPI): void {
             tags: normalizeTags(params.tags),
             createdAt: now,
             updatedAt: now,
+            archived: false,
           };
           store.memories.push(memory);
           await writeStore(file, store);
@@ -238,9 +270,71 @@ export default function memoryExtension(pi: ExtensionAPI): void {
           });
         }
 
+        if (params.action === "archive" || params.action === "restore") {
+          const id = nonEmpty(params.id, "id");
+          const memory = findMemory(store, id);
+          memory.archived = params.action === "archive";
+          memory.updatedAt = now;
+          await writeStore(file, store);
+          return textResult(`${params.action === "archive" ? "Archived" : "Restored"} memory ${memory.id}: ${memory.title}`, {
+            action: params.action,
+            file,
+            memory: publicMemory(memory),
+          });
+        }
+
+        if (params.action === "delete") {
+          const id = nonEmpty(params.id, "id");
+          const index = store.memories.findIndex((memory) => memory.id === id);
+          if (index < 0) throw new Error(`No memory found with id: ${id}`);
+          store.memories.splice(index, 1);
+          await writeStore(file, store);
+          return textResult(`Deleted memory ${id}.`, {
+            action: params.action,
+            file,
+            deletedId: id,
+            count: store.memories.length,
+          });
+        }
+
+        if (params.action === "merge") {
+          const targetId = nonEmpty(params.targetId ?? params.id, "targetId");
+          const sourceId = nonEmpty(params.sourceId, "sourceId");
+          if (targetId === sourceId) throw new Error("memory merge requires different targetId and sourceId");
+          const target = findMemory(store, targetId);
+          const source = findMemory(store, sourceId);
+          const mergedContent = `${target.content.trim()}\n\n${source.content.trim()}`.trim();
+          if (mergedContent.length > MAX_MEMORY_CONTENT) {
+            throw new Error(`merged memory content is limited to ${MAX_MEMORY_CONTENT} characters`);
+          }
+          target.content = mergedContent;
+          target.tags = normalizeTags([...target.tags, ...source.tags]);
+          target.archived = false;
+          target.updatedAt = now;
+          source.archived = true;
+          source.updatedAt = now;
+          await writeStore(file, store);
+          return textResult(`Merged memory ${source.id} into ${target.id}; source archived.`, {
+            action: params.action,
+            file,
+            memory: publicMemory(target),
+            sourceId: source.id,
+            targetId: target.id,
+          });
+        }
+
+        if (params.action === "stats") {
+          const stats = memoryStats(store);
+          return textResult(
+            `Memory stats: ${stats.total} total · ${stats.active} active · ${stats.archived} archived · ${stats.tagCount} unique tags`,
+            { action: params.action, file, stats },
+          );
+        }
+
         const limit = params.limit ?? DEFAULT_LIMIT;
         const query = params.query?.trim();
-        const matches = retrieveMemories(store, params.id, query, limit);
+        const includeArchived = params.includeArchived === true;
+        const matches = retrieveMemories(store, params.id, query, limit, includeArchived);
         if (matches.length === 0) {
           return textResult("No memories found.", { action: params.action, file, memories: [], count: 0 });
         }
@@ -249,13 +343,15 @@ export default function memoryExtension(pi: ExtensionAPI): void {
         const memories = matches.map((memory) => publicMemory(memory, isFocused ? MAX_SEARCH_CONTENT : 0));
         const lines = memories.map((memory) => {
           const tags = memory.tags.length > 0 ? ` [${memory.tags.join(", ")}]` : "";
+          const archived = memory.archived ? " (archived)" : "";
           return isFocused
-            ? `- ${memory.id}: ${memory.title}${tags}\n  ${memory.content}`
-            : `- ${memory.id}: ${memory.title}${tags}`;
+            ? `- ${memory.id}: ${memory.title}${archived}${tags}\n  ${memory.content}`
+            : `- ${memory.id}: ${memory.title}${archived}${tags}`;
         });
+        const availableCount = store.memories.filter((memory) => includeArchived || !memory.archived).length;
         const heading = isFocused
           ? `Found ${memories.length} memor${memories.length === 1 ? "y" : "ies"}`
-          : `Memory index (${store.memories.length} total; showing ${memories.length})`;
+          : `Memory index (${availableCount} available; showing ${memories.length})`;
         const suffix = isFocused ? "" : "\nUse a focused query or id to retrieve memory content.";
         return textResult(`${heading}:${suffix}\n${lines.join("\n")}`, {
           action: params.action,
@@ -266,13 +362,22 @@ export default function memoryExtension(pi: ExtensionAPI): void {
       });
     },
     renderCall(args, theme) {
-      const suffix = args.action === "retrieve" ? (args.query ? ` · ${args.query}` : "") : args.id ? ` · ${args.id}` : "";
+      const suffix = args.action === "retrieve"
+        ? args.query ? ` · ${args.query}` : args.id ? ` · ${args.id}` : ""
+        : args.action === "merge"
+          ? ` · ${args.targetId ?? args.id ?? "?"} ← ${args.sourceId ?? "?"}`
+          : args.id ? ` · ${args.id}` : "";
       return new Text(theme.fg("toolTitle", theme.bold("memory ")) + theme.fg("accent", `${args.action}${suffix}`), 0, 0);
     },
     renderResult(result, _options, theme) {
       const details = result.details as MemoryDetails | undefined;
       if (details?.action === "retrieve") {
         return new Text(theme.fg("success", `✓ ${details.count ?? 0} memor${details.count === 1 ? "y" : "ies"}`), 0, 0);
+      }
+      if (details?.action === "stats") return new Text(theme.fg("success", "✓ Memory stats"), 0, 0);
+      if (details?.action === "delete") return new Text(theme.fg("success", "✓ Memory deleted"), 0, 0);
+      if (details?.action === "archive" || details?.action === "restore" || details?.action === "merge") {
+        return new Text(theme.fg("success", `✓ Memory ${details.action}`), 0, 0);
       }
       return new Text(theme.fg("success", "✓ Memory saved"), 0, 0);
     },
