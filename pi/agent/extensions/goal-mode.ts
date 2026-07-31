@@ -1,3 +1,4 @@
+import { createGitCheckpoint } from "./checkpoint.ts";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Key, Text, truncateToWidth } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
@@ -124,23 +125,40 @@ function statusText(state: GoalState): string {
   return "";
 }
 
-function goalWidget(state: GoalState, ctx: ExtensionContext) {
+function compactUiText(value: string): string {
+  return value
+    // A widget render entry must represent one terminal line. Strip control
+    // characters (including newlines) from user/model-provided text so it
+    // cannot desynchronize Pi's differential renderer.
+    .replace(/[\u0000-\u001f\u007f-\u009f]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function goalWidget(ctx: ExtensionContext, getState: () => GoalState): void {
   ctx.ui.setWidget("goal-mode", (_tui, theme) => ({
     render(width: number): string[] {
+      const state = getState();
       const limit = Math.max(1, width);
       const icon = state.status === "completed" ? "✓" : state.status === "paused" ? "Ⅱ" : "◈";
       const heading = `${icon} ${state.status === "completed" ? "Goal complete" : state.status === "paused" ? "Goal paused" : "Goal mode"}  ·  ${state.iterations}/${state.maxIterations}`;
       const lines = [
         theme.fg(state.status === "completed" ? "success" : state.status === "paused" ? "warning" : "accent", heading),
-        theme.fg("text", `  ${state.goal}`),
-        theme.fg("muted", `  ${state.progress}`),
+        theme.fg("text", `  ${compactUiText(state.goal)}`),
+        theme.fg("muted", `  ${compactUiText(state.progress)}`),
       ];
 
       if (state.plan.length > 0) {
-        lines.push(theme.fg("dim", "  plan: ") + state.plan.slice(0, 3).map((item, index) => `${index + 1}. ${item}`).join("  ·  "));
+        const plan = state.plan
+          .slice(0, 3)
+          .map((item, index) => `${index + 1}. ${compactUiText(item)}`)
+          .join("  ·  ");
+        lines.push(theme.fg("dim", "  plan: ") + plan);
       }
 
-      return lines.map((line) => truncateToWidth(line, limit, "…"));
+      // Use an empty ellipsis so every returned entry is strictly bounded by
+      // width without adding another wide glyph at the terminal edge.
+      return lines.map((line) => truncateToWidth(line, limit, ""));
     },
     invalidate() {},
   }));
@@ -158,6 +176,7 @@ export default function goalModeExtension(pi: ExtensionAPI): void {
   };
   let currentContext: ExtensionContext | undefined;
   let continuationQueued = false;
+  let goalWidgetInstalled = false;
 
   function persist(): void {
     pi.appendEntry(GOAL_STATE_TYPE, { ...state, plan: [...state.plan] });
@@ -166,10 +185,15 @@ export default function goalModeExtension(pi: ExtensionAPI): void {
   function updateUi(ctx: ExtensionContext): void {
     currentContext = ctx;
     ctx.ui.setStatus("goal-mode", statusText(state) || undefined);
+
     if (state.status === "idle") {
-      ctx.ui.setWidget("goal-mode", undefined);
-    } else {
-      goalWidget(state, ctx);
+      if (goalWidgetInstalled) {
+        ctx.ui.setWidget("goal-mode", undefined);
+        goalWidgetInstalled = false;
+      }
+    } else if (!goalWidgetInstalled) {
+      goalWidget(ctx, () => state);
+      goalWidgetInstalled = true;
     }
   }
 
@@ -194,6 +218,20 @@ export default function goalModeExtension(pi: ExtensionAPI): void {
 
   function continuationPrompt(): string {
     return `Continue working on the active goal. Review the goal, your designed success criteria, and the latest tool results. Take the next useful action now; do not provide a stopping summary until the goal is verified. When all criteria pass, call goal_complete.`;
+  }
+
+  function sendGoalPrompt(
+    prompt: string,
+    options: { triggerTurn?: boolean; deliverAs?: "steer" | "followUp" | "nextTurn" },
+  ): void {
+    pi.sendMessage(
+      {
+        customType: GOAL_CONTEXT_TYPE,
+        content: `${promptForGoal()}\n\n${prompt}`,
+        display: false,
+      },
+      options,
+    );
   }
 
   function isGeneratedGoalPrompt(message: unknown): boolean {
@@ -275,7 +313,7 @@ export default function goalModeExtension(pi: ExtensionAPI): void {
       continuationQueued = false;
       persist();
       updateUi(ctx);
-      pi.sendUserMessage(continuationPrompt());
+      sendGoalPrompt(continuationPrompt(), { triggerTurn: true });
       return;
     }
 
@@ -290,11 +328,36 @@ export default function goalModeExtension(pi: ExtensionAPI): void {
     }
 
     if (typeof ctx.waitForIdle === "function") await ctx.waitForIdle();
+    try {
+      const checkpoint = await createGitCheckpoint(pi, ctx.cwd, "goal-start");
+      pi.appendEntry("git-checkpoint", {
+        id: checkpoint.id,
+        label: checkpoint.label,
+        createdAt: checkpoint.createdAt,
+        repoRoot: checkpoint.repoRoot,
+        head: checkpoint.head,
+        branch: checkpoint.branch,
+      });
+      ctx.ui.notify(`Git checkpoint created before goal: ${checkpoint.id}`, "info");
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      if (/not a git repository/i.test(detail)) {
+        ctx.ui.notify("No Git repository found; starting goal without a checkpoint.", "warning");
+      } else {
+        ctx.ui.notify(`Goal not started because the Git checkpoint failed: ${detail}`, "error");
+        return;
+      }
+    }
+    if (!pi.getSessionName()) {
+      const goalName = compactUiText(input);
+      const suffix = goalName.length > 70 ? `${goalName.slice(0, 69).trimEnd()}…` : goalName;
+      if (suffix) pi.setSessionName(`Goal: ${suffix}`);
+    }
     state = makeInitialState(input);
     continuationQueued = false;
     persist();
     updateUi(ctx);
-    pi.sendUserMessage(kickoffPrompt());
+    sendGoalPrompt(kickoffPrompt(), { triggerTurn: true });
   };
 
   pi.registerCommand("goal", {
@@ -323,7 +386,7 @@ export default function goalModeExtension(pi: ExtensionAPI): void {
         continuationQueued = false;
         persist();
         updateUi(ctx);
-        pi.sendUserMessage(continuationPrompt());
+        sendGoalPrompt(continuationPrompt(), { triggerTurn: true });
       }
     },
   });
@@ -372,6 +435,19 @@ export default function goalModeExtension(pi: ExtensionAPI): void {
       (message) => (message as GoalMessage).customType === GOAL_CONTEXT_TYPE,
     );
     const generatedPrompts = event.messages.filter(isGeneratedGoalPrompt);
+
+    // Goal instructions are implementation details, not conversation history.
+    // Remove them completely once the goal is no longer active so a completed or
+    // paused goal cannot leak into a later user request.
+    if (state.status !== "active") {
+      if (goalMessages.length === 0 && generatedPrompts.length === 0) return;
+      return {
+        messages: event.messages.filter((message) => {
+          return (message as GoalMessage).customType !== GOAL_CONTEXT_TYPE && !isGeneratedGoalPrompt(message);
+        }),
+      };
+    }
+
     if (goalMessages.length <= 1 && generatedPrompts.length === 0) return;
 
     let latestIndex = -1;
@@ -436,13 +512,14 @@ export default function goalModeExtension(pi: ExtensionAPI): void {
     continuationQueued = true;
     persist();
     updateUi(ctx);
-    pi.sendUserMessage(continuationPrompt(), { deliverAs: "followUp" });
+    sendGoalPrompt(continuationPrompt(), { deliverAs: "followUp" });
   });
 
   pi.on("session_shutdown", async (_event, ctx) => {
     if (state.status === "active") persist();
     ctx.ui.setStatus("goal-mode", undefined);
     ctx.ui.setWidget("goal-mode", undefined);
+    goalWidgetInstalled = false;
     currentContext = undefined;
   });
 

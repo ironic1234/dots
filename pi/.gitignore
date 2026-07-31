@@ -1,2 +1,3 @@
-# Local Pi memory data can contain personal context.
+# Local Pi data can contain personal context or worktree snapshots.
 /agent/memories.json
+/agent/checkpoints/
