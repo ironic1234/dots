@@ -63,6 +63,7 @@ class FileOAuthProvider implements OAuthClientProvider {
 }
 
 const ROBINHOOD_SEARCH_TOOL = "robinhood_search_tools";
+const ROBINHOOD_CAPABILITY_PROMPT = "[ROBINHOOD CAPABILITY] Robinhood capabilities are available on demand. Use robinhood_search_tools with a focused task to load only the matching brokerage tool schemas; do not assume every Robinhood tool is active.";
 
 type CatalogTool = {
   name: string;
@@ -72,6 +73,10 @@ type CatalogTool = {
 
 export default function (pi: ExtensionAPI) {
   let client: Client | undefined;
+
+  pi.on("before_agent_start", (event) => ({
+    systemPrompt: `${event.systemPrompt}\n\n${ROBINHOOD_CAPABILITY_PROMPT}`,
+  }));
   let transport: StreamableHTTPClientTransport | undefined;
   let toolsRegistered = false;
   const catalog = new Map<string, CatalogTool>();
