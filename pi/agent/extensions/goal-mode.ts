@@ -188,8 +188,17 @@ export default function goalModeExtension(pi: ExtensionAPI): void {
     return `[GOAL MODE ACTIVE — iteration ${state.iterations}/${state.maxIterations}]\n\nOriginal goal:\n${state.goal}\n${plan}\n\nWork autonomously toward this goal. On the first pass, design a concrete plan and explicit, verifiable success criteria. Then execute the plan using the available tools and verify each criterion yourself. Do not stop merely because you have a plan or because one step succeeded. If information is genuinely required from the user, use the question tool instead of writing a question in prose. When every criterion is verified, call goal_complete with a concise summary and concrete evidence. Never call goal_complete speculatively. If blocked, explain the blocker and the next useful action rather than claiming success.`;
   }
 
+  function kickoffPrompt(): string {
+    return "Begin working on the active goal. Design the plan and success criteria, then take the first useful action.";
+  }
+
   function continuationPrompt(): string {
     return `Continue working on the active goal. Review the goal, your designed success criteria, and the latest tool results. Take the next useful action now; do not provide a stopping summary until the goal is verified. When all criteria pass, call goal_complete.`;
+  }
+
+  function isGeneratedGoalPrompt(message: unknown): boolean {
+    const candidate = message as GoalMessage;
+    return candidate.role === "user" && textFromMessage(message).startsWith("[GOAL MODE ACTIVE —");
   }
 
   pi.registerTool({
@@ -285,7 +294,7 @@ export default function goalModeExtension(pi: ExtensionAPI): void {
     continuationQueued = false;
     persist();
     updateUi(ctx);
-    pi.sendUserMessage(promptForGoal());
+    pi.sendUserMessage(kickoffPrompt());
   };
 
   pi.registerCommand("goal", {
@@ -362,7 +371,8 @@ export default function goalModeExtension(pi: ExtensionAPI): void {
     const goalMessages = event.messages.filter(
       (message) => (message as GoalMessage).customType === GOAL_CONTEXT_TYPE,
     );
-    if (goalMessages.length <= 1) return;
+    const generatedPrompts = event.messages.filter(isGeneratedGoalPrompt);
+    if (goalMessages.length <= 1 && generatedPrompts.length === 0) return;
 
     let latestIndex = -1;
     for (let i = event.messages.length - 1; i >= 0; i--) {
@@ -372,9 +382,10 @@ export default function goalModeExtension(pi: ExtensionAPI): void {
       }
     }
     return {
-      messages: event.messages.filter(
-        (message, index) => (message as GoalMessage).customType !== GOAL_CONTEXT_TYPE || index === latestIndex,
-      ),
+      messages: event.messages.filter((message, index) => {
+        if (isGeneratedGoalPrompt(message)) return false;
+        return (message as GoalMessage).customType !== GOAL_CONTEXT_TYPE || index === latestIndex;
+      }),
     };
   });
 
