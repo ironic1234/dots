@@ -90,6 +90,10 @@ function renderFrame(width: number, content: string, theme: ExtensionContext["ui
 export default function footerExtension(pi: ExtensionAPI): void {
   let requestRender = (): void => {};
 
+  pi.on("before_agent_start", (event) => ({
+    systemPrompt: `${event.systemPrompt}\n\n[FOOTER CAPABILITY] A compact UI footer is active and displays model, context, usage, cost, branch, tool, and extension-status information. It requires no model action.`,
+  }));
+
   function refresh(): void {
     requestRender();
   }
