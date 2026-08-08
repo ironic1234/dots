@@ -1,11 +1,11 @@
-vim.pack.add({ "https://github.com/pablopunk/pi.nvim" }, { confirm = false, load = true })
+vim.pack.add({ "https://github.com/ronakpjain/pi.nvim" }, { confirm = false, load = true })
 
 local pi = require("pi")
 local pi_config = require("pi.config")
 
 pi.setup()
 
-local THINKING_LEVELS = { "off", "minimal", "low", "medium", "high", "xhigh" }
+local THINKING_LEVELS = { "off", "minimal", "low", "medium", "high", "xhigh", "max" }
 local FIDGET_KEY = "pi.nvim.config"
 
 local function notify(message, level)
@@ -30,7 +30,16 @@ end
 
 local function show_config()
 	local config = pi_config.get()
-	notify(string.format("pi.nvim | model: %s | thinking: %s", format_model(config), config.thinking))
+	local model = format_model(config)
+	local thinking = config.thinking
+	local state = require("pi.rpc").get_state()
+	if state and type(state.model) == "table" then
+		model = format_model({ provider = state.model.provider, model = state.model.id })
+	end
+	if state and state.thinkingLevel then
+		thinking = state.thinkingLevel
+	end
+	notify(string.format("pi.nvim | model: %s | thinking: %s", model, thinking))
 end
 
 -- Resolve pi's scoped model list (`enabledModels` in settings.json, same rules
@@ -155,6 +164,37 @@ local function with_scoped_models(callback)
 	end)
 end
 
+local function apply_model_changes(changes, callback)
+	local rpc = require("pi.rpc")
+	if not rpc.is_running() then
+		update_config(changes)
+		callback(nil)
+		return
+	end
+
+	pi.set_model(changes.provider, changes.model, function(_, err)
+		if err then
+			callback(err)
+			return
+		end
+		local function finish(thinking_err)
+			if thinking_err then
+				callback(thinking_err)
+				return
+			end
+			update_config(changes)
+			callback(nil)
+		end
+		if changes.thinking then
+			pi.set_thinking_level(changes.thinking, function(_, thinking_err)
+				finish(thinking_err)
+			end)
+		else
+			finish(nil)
+		end
+	end)
+end
+
 local function cycle_model(direction)
 	with_scoped_models(function(models)
 		if #models < 2 then
@@ -162,7 +202,12 @@ local function cycle_model(direction)
 			return
 		end
 
-		local current = format_model(pi_config.get())
+		local current_config = pi_config.get()
+		local state = require("pi.rpc").get_state()
+		if state and type(state.model) == "table" then
+			current_config = { provider = state.model.provider, model = state.model.id }
+		end
+		local current = format_model(current_config)
 		local index = 0
 		for position, model in ipairs(models) do
 			if model.label == current then
@@ -186,12 +231,33 @@ local function cycle_model(direction)
 			changes.thinking = next_model.thinking
 		end
 
-		update_config(changes)
-		show_config()
+		apply_model_changes(changes, function(err)
+			if err then
+				notify("pi.nvim | unable to switch model: " .. tostring(err), vim.log.levels.ERROR)
+			else
+				show_config()
+			end
+		end)
 	end)
 end
 
 local function cycle_thinking()
+	local rpc = require("pi.rpc")
+	if rpc.is_running() then
+		pi.cycle_thinking_level(function(data, err)
+			if err then
+				notify("pi.nvim | unable to cycle thinking: " .. tostring(err), vim.log.levels.ERROR)
+				return
+			end
+			local level = data and data.level
+			if level then
+				update_config({ thinking = level })
+			end
+			show_config()
+		end)
+		return
+	end
+
 	local config = pi_config.get()
 	local current_index = 1
 	for index, level in ipairs(THINKING_LEVELS) do
