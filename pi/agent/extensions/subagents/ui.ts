@@ -647,4 +647,3 @@ export class SubagentsBrowser implements Component {
 		return lines;
 	}
 }
-
