@@ -26,7 +26,7 @@ alt - l : yabai -m display --focus 1;
 alt - j : yabai -m display --focus 2;
 
 # ── Apps ─────────────────────────────────────────────────
-alt - k : open -na kitty --args --single-instance --directory ~
+alt - k : open -na Ghostty --args --working-directory="$HOME"
 alt - t : open "/Applications/Firefox Nightly.app"
 alt - c : open /Applications/Neko.app
 
