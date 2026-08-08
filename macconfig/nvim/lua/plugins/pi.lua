@@ -9,12 +9,7 @@ local THINKING_LEVELS = { "off", "minimal", "low", "medium", "high", "xhigh" }
 local FIDGET_KEY = "pi.nvim.config"
 
 local function notify(message, level)
-	local ok, fidget = pcall(require, "fidget")
-	if ok and fidget.notify then
-		fidget.notify(message, level or vim.log.levels.INFO, { key = FIDGET_KEY, ttl = 5 })
-	else
-		vim.notify(message, level or vim.log.levels.INFO)
-	end
+	require("fidget").notify(message, level or vim.log.levels.INFO, { key = FIDGET_KEY, ttl = 5 })
 end
 
 local function update_config(changes)
