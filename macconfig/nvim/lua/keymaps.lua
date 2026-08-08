@@ -105,3 +105,7 @@ end, { desc = "LSP: Toggle inlay hints" })
 
 -- Jump
 vim.keymap.set({ "n", "x", "o" }, "<leader>s", require("jump").start, {})
+
+-- pi.nvim
+vim.keymap.set("n", "<leader>ai", "<Cmd>PiAsk<CR>", { desc = "Ask pi" })
+vim.keymap.set("v", "<leader>ai", "<Cmd>PiAskSelection<CR>", { desc = "Ask pi (selection)" })

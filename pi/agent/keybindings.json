@@ -1,0 +1,5 @@
+{
+  "app.model.cycleForward": "ctrl+enter",
+  "app.model.cycleBackward": "shift+ctrl+enter",
+  "app.thinking.cycle": "ctrl+n"
+}
