@@ -6,7 +6,12 @@ import { Type } from "typebox";
 const DEFAULT_MAX_ITERATIONS = 32;
 const GOAL_CONTEXT_TYPE = "goal-mode-context";
 const GOAL_STATE_TYPE = "goal-mode-state";
-const GOAL_CAPABILITY_PROMPT = "[GOAL CAPABILITY] The user can start autonomous work with /goal <objective>. When goal mode is active, design explicit verifiable criteria, keep working across turns, and call goal_complete only after every criterion is verified.";
+const GOAL_CAPABILITY_PROMPT =
+  "[GOAL CAPABILITY] The user can start autonomous work with /goal <objective>. " +
+  "When goal mode is active, design explicit verifiable criteria, keep working across turns, and call goal_complete only after every criterion is verified. " +
+  "A message from the user during an active goal is FEEDBACK on the goal, not a new request: incorporate it, adjust the plan if needed, and keep working toward the goal. " +
+  "If the goal is paused, the user is giving feedback when they type a message; resume addressing the goal. " +
+  "If the user says to stop or pause, stop working and wait for /goal resume.";
 
 type GoalStatus = "idle" | "active" | "paused" | "completed";
 
@@ -20,6 +25,7 @@ interface GoalState {
   startedAt: string;
   completedAt?: string;
   completionSummary?: string;
+  feedback?: string;
 }
 
 interface GoalMessage {
@@ -115,6 +121,7 @@ function makeInitialState(goal: string): GoalState {
     iterations: 0,
     maxIterations,
     startedAt: new Date().toISOString(),
+    feedback: "",
   };
 }
 
@@ -148,6 +155,10 @@ function goalWidget(ctx: ExtensionContext, getState: () => GoalState): void {
         theme.fg("muted", `  ${compactUiText(state.progress)}`),
       ];
 
+      if (state.feedback) {
+        lines.push(theme.fg("warning", `  ↳ feedback: ${compactUiText(state.feedback)}`));
+      }
+
       if (state.plan.length > 0) {
         const plan = state.plan
           .slice(0, 3)
@@ -155,6 +166,14 @@ function goalWidget(ctx: ExtensionContext, getState: () => GoalState): void {
           .join("  ·  ");
         lines.push(theme.fg("dim", "  plan: ") + plan);
       }
+
+      const hint =
+        state.status === "paused"
+          ? "type a message or /goal resume to continue · /goal feedback <text>"
+          : state.status === "active"
+            ? "type to give feedback · ^G pause · /goal status"
+            : "";
+      if (hint) lines.push(theme.fg("dim", `  ${hint}`));
 
       // Use an empty ellipsis so every returned entry is strictly bounded by
       // width without adding another wide glyph at the terminal edge.
@@ -173,10 +192,15 @@ export default function goalModeExtension(pi: ExtensionAPI): void {
     iterations: 0,
     maxIterations: DEFAULT_MAX_ITERATIONS,
     startedAt: "",
+    feedback: "",
   };
   let currentContext: ExtensionContext | undefined;
   let continuationQueued = false;
   let goalWidgetInstalled = false;
+  /** Why the current run was aborted: a user pause, or a feedback-resume.
+   *  Lets agent_end(aborted) avoid pausing a goal that was just resumed
+   *  with feedback. */
+  let abortIntent: "pause" | "feedback" | undefined;
 
   function persist(): void {
     pi.appendEntry(GOAL_STATE_TYPE, { ...state, plan: [...state.plan] });
@@ -209,7 +233,11 @@ export default function goalModeExtension(pi: ExtensionAPI): void {
 
   function promptForGoal(): string {
     const plan = state.plan.length > 0 ? `\nCurrent designed plan:\n${state.plan.map((item, i) => `${i + 1}. ${item}`).join("\n")}` : "";
-    return `[GOAL MODE ACTIVE — iteration ${state.iterations}/${state.maxIterations}]\n\nOriginal goal:\n${state.goal}\n${plan}\n\nWork autonomously toward this goal. On the first pass, design a concrete plan and explicit, verifiable success criteria. Then execute the plan using the available tools and verify each criterion yourself. Do not stop merely because you have a plan or because one step succeeded. If information is genuinely required from the user, use the question tool instead of writing a question in prose. When every criterion is verified, call goal_complete with a concise summary and concrete evidence. Never call goal_complete speculatively. If blocked, explain the blocker and the next useful action rather than claiming success.`;
+    const feedback =
+      state.feedback && state.feedback.trim()
+        ? `\n\nLatest user feedback (address this first, then continue the goal):\n${state.feedback.trim()}`
+        : "";
+    return `[GOAL MODE ACTIVE — iteration ${state.iterations}/${state.maxIterations}]\n\nOriginal goal:\n${state.goal}${plan}${feedback}\n\nWork autonomously toward this goal. On the first pass, design a concrete plan and explicit, verifiable success criteria. Then execute the plan using the available tools and verify each criterion yourself. Do not stop merely because you have a plan or because one step succeeded. A user message during the goal is feedback: incorporate it and keep going. If information is genuinely required from the user, use the question tool instead of writing a question in prose. When every criterion is verified, call goal_complete with a concise summary and concrete evidence. Never call goal_complete speculatively. If blocked, explain the blocker and the next useful action rather than claiming success.`;
   }
 
   function kickoffPrompt(): string {
@@ -218,6 +246,10 @@ export default function goalModeExtension(pi: ExtensionAPI): void {
 
   function continuationPrompt(): string {
     return `Continue working on the active goal. Review the goal, your designed success criteria, and the latest tool results. Take the next useful action now; do not provide a stopping summary until the goal is verified. When all criteria pass, call goal_complete.`;
+  }
+
+  function isGoalGeneratedText(text: string): boolean {
+    return text.trimStart().startsWith("[GOAL MODE ACTIVE —");
   }
 
   function sendGoalPrompt(
@@ -281,12 +313,38 @@ export default function goalModeExtension(pi: ExtensionAPI): void {
     const input = args.trim();
     const command = input.toLowerCase();
 
+    if (command === "help") {
+      const help = [
+        "Goal mode lets pi work autonomously toward an objective you set.",
+        "",
+        "  /goal <objective>            start a goal (also creates a git checkpoint)",
+        "  /goal status                 show goal, progress, plan, and feedback",
+        "  /goal stop                   pause now and abort the current work",
+        "  /goal resume                 continue working toward the goal",
+        "  /goal feedback <text>        stop work, record your feedback, and resume",
+        "  /goal clear                  end the goal and reset goal mode",
+        "  Ctrl+Alt+G                   toggle pause / resume",
+        "",
+        "Giving feedback mid-goal:",
+        "  - While the goal is running, just type your feedback as a normal message.",
+        "    It is recorded and the goal keeps working with it in mind.",
+        "  - While the goal is paused, typing a message also counts as feedback and",
+        "    automatically resumes the goal.",
+        "  - To stop work first, press Ctrl+Alt+G or run /goal stop, then type your",
+        "    feedback; the goal resumes with it.",
+        "  - /goal feedback <text> does all of that in one step.",
+      ].join("\n");
+      ctx.ui.notify(help, "info");
+      return;
+    }
+
     if (command === "status" || command === "") {
       if (state.status === "idle") {
-        ctx.ui.notify("No goal is active. Start one with /goal <objective>.", "info");
+        ctx.ui.notify("No goal is active. Start one with /goal <objective> (or /goal help).", "info");
       } else {
         const plan = state.plan.length > 0 ? `\nPlan:\n${state.plan.map((item, i) => `${i + 1}. ${item}`).join("\n")}` : "";
-        ctx.ui.notify(`${statusText(state)}\n${state.goal}\n${state.progress}${plan}`, "info");
+        const feedback = state.feedback ? `\nLatest feedback: ${state.feedback}` : "";
+        ctx.ui.notify(`${statusText(state)}\n${state.goal}\n${state.progress}${feedback}${plan}`, "info");
       }
       return;
     }
@@ -294,12 +352,37 @@ export default function goalModeExtension(pi: ExtensionAPI): void {
     if (command === "stop" || command === "pause") {
       if (state.status === "active") {
         state.status = "paused";
-        state.progress = "Paused by user";
+        state.progress = "Paused by user — type feedback or /goal resume to continue";
+        abortIntent = "pause";
         persist();
         ctx.abort();
         updateUi(ctx);
-        ctx.ui.notify("Goal mode paused. Use /goal resume to continue.", "warning");
+        ctx.ui.notify("Goal paused. Type your feedback (it resumes the goal) or /goal resume to continue.", "warning");
       }
+      return;
+    }
+
+    if (command.startsWith("feedback")) {
+      if (state.status === "idle") {
+        ctx.ui.notify("No goal is active. Start one with /goal <objective>.", "warning");
+        return;
+      }
+      const feedbackText = input.slice("feedback".length).trim();
+      if (!feedbackText) {
+        ctx.ui.notify("Usage: /goal feedback <message>", "warning");
+        return;
+      }
+      if (state.status === "active") abortIntent = "feedback";
+      if (state.status === "active") ctx.abort();
+      state.status = "active";
+      state.feedback = feedbackText;
+      state.progress = "Addressing your feedback";
+      state.iterations = 0;
+      continuationQueued = false;
+      persist();
+      updateUi(ctx);
+      sendGoalPrompt(continuationPrompt(), { triggerTurn: true });
+      ctx.ui.notify(`Feedback recorded; goal resuming: ${compactUiText(feedbackText)}`, "info");
       return;
     }
 
@@ -374,7 +457,8 @@ export default function goalModeExtension(pi: ExtensionAPI): void {
     handler: async (ctx) => {
       if (state.status === "active") {
         state.status = "paused";
-        state.progress = "Paused by user";
+        state.progress = "Paused by user — type feedback or /goal resume to continue";
+        abortIntent = "pause";
         persist();
         ctx.abort();
         updateUi(ctx);
@@ -410,6 +494,7 @@ export default function goalModeExtension(pi: ExtensionAPI): void {
   pi.on("agent_start", (_event, ctx) => {
     currentContext = ctx;
     continuationQueued = false;
+    abortIntent = undefined;
     updateUi(ctx);
   });
 
@@ -420,7 +505,30 @@ export default function goalModeExtension(pi: ExtensionAPI): void {
     } = {
       systemPrompt: `${event.systemPrompt}\n\n${GOAL_CAPABILITY_PROMPT}`,
     };
+
+    const userPrompt = typeof event.prompt === "string" ? event.prompt.trim() : "";
+    const isGenerated = isGoalGeneratedText(userPrompt);
+
+    if (state.status === "paused" && userPrompt && !isGenerated) {
+      // The user typed a message while the goal is paused: record it as
+      // feedback and resume the goal with that feedback in context.
+      state.status = "active";
+      state.feedback = userPrompt;
+      state.progress = "Addressing your feedback";
+      state.iterations = 0;
+      continuationQueued = false;
+      persist();
+      result.message = {
+        customType: GOAL_CONTEXT_TYPE,
+        content: promptForGoal(),
+        display: false,
+      };
+      return result;
+    }
+
     if (state.status === "active") {
+      // Any non-generated user message during the goal is feedback on it.
+      if (userPrompt && !isGenerated) state.feedback = userPrompt;
       result.message = {
         customType: GOAL_CONTEXT_TYPE,
         content: promptForGoal(),
@@ -488,9 +596,25 @@ export default function goalModeExtension(pi: ExtensionAPI): void {
       return;
     }
 
-    if (last?.stopReason === "aborted" || last?.stopReason === "error") {
+    if (last?.stopReason === "aborted") {
+      // An abort with a feedback-resume pending must not pause the goal
+      // again: the feedback turn is queued and about to start.
+      if (abortIntent === "feedback") {
+        abortIntent = undefined;
+        return;
+      }
+      abortIntent = undefined;
       state.status = "paused";
-      state.progress = `Paused after ${last.stopReason}`;
+      state.progress = "Paused — type feedback or /goal resume to continue";
+      persist();
+      updateUi(ctx);
+      return;
+    }
+
+    if (last?.stopReason === "error") {
+      abortIntent = undefined;
+      state.status = "paused";
+      state.progress = `Paused after error: ${text.slice(0, 120) || "unknown error"}`;
       persist();
       updateUi(ctx);
       return;
@@ -498,10 +622,10 @@ export default function goalModeExtension(pi: ExtensionAPI): void {
 
     if (state.iterations >= state.maxIterations) {
       state.status = "paused";
-      state.progress = `Iteration limit reached (${state.maxIterations})`;
+      state.progress = `Iteration limit reached (${state.maxIterations}) — type feedback or /goal resume to continue`;
       persist();
       updateUi(ctx);
-      ctx.ui.notify("Goal mode paused at its iteration limit. Use /goal resume to continue.", "warning");
+      ctx.ui.notify("Goal paused at its iteration limit. Type feedback or /goal resume to continue.", "warning");
       return;
     }
 

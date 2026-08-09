@@ -37,6 +37,7 @@ const REQUIRED_EXTENSIONS = [
   "context-budget.ts",
   "checkpoint.ts",
   "session-automation.ts",
+  "recheck/index.ts",
   "opencode-free-models.ts",
   "robinhood-mcp/index.ts",
 ];
