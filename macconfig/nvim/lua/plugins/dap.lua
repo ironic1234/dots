@@ -72,8 +72,76 @@ dap.configurations.python = {
 	},
 }
 
+-- Keep DAP breakpoints visually distinct from ordinary signs.
+vim.api.nvim_set_hl(0, "DapBreakpoint", { fg = "#f7768e" })
+vim.api.nvim_set_hl(0, "DapBreakpointCondition", { fg = "#f7768e" })
+vim.api.nvim_set_hl(0, "DapBreakpointRejected", { fg = "#f7768e" })
+for _, name in ipairs({ "DapBreakpoint", "DapBreakpointCondition", "DapBreakpointRejected" }) do
+	vim.fn.sign_define(name, { text = "●", texthl = name, linehl = "", numhl = "" })
+end
+
 local dapui = require("dapui")
-dapui.setup()
+-- Replace the generic stacks pane (which is mostly the GDB "Remote target")
+-- with Cortex's current-thread stack, and put RTOS + REPL/console together
+-- in the bottom tray. Live Watch remains its own right-hand window.
+dapui.register_element("cortex_callstack", cortex.callstack_element())
+dapui.register_element("cortex_rtos", cortex.rtos_element())
+dapui.register_element("cortex_peripherals", cortex.peripheral_element())
+dapui.setup({
+	layouts = {
+		{
+			elements = {
+				{ id = "scopes", size = 0.24 },
+				{ id = "breakpoints", size = 0.16 },
+				{ id = "cortex_callstack", size = 0.30 },
+				{ id = "cortex_peripherals", size = 0.30 },
+			},
+			size = 42,
+			position = "left",
+		},
+		{
+			elements = {
+				{ id = "cortex_rtos", size = 0.60 },
+				{ id = "repl", size = 0.20 },
+				{ id = "console", size = 0.20 },
+			},
+			size = 14,
+			position = "bottom",
+		},
+	},
+})
+
+-- nvim-dap-ui has no close event. Wrap its public lifecycle functions so
+-- Cortex windows follow the UI when it is closed manually as well as when a
+-- session terminates. No dap-ui fork is required.
+local dapui_open = false
+local dapui_open_raw = dapui.open
+local dapui_close_raw = dapui.close
+local dapui_toggle_raw = dapui.toggle
+
+dapui.open = function(args)
+	dapui_open = true
+	return dapui_open_raw(args)
+end
+
+dapui.close = function(args)
+	local result = dapui_close_raw(args)
+	dapui_open = false
+	cortex.close_views()
+	return result
+end
+
+dapui.toggle = function(args)
+	local was_open = dapui_open
+	local result = dapui_toggle_raw(args)
+	if was_open then
+		dapui_open = false
+		cortex.close_views()
+	else
+		dapui_open = true
+	end
+	return result
+end
 
 dap.listeners.after.event_initialized["dapui_config"] = function()
 	dapui.open()
