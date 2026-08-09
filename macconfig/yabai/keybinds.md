@@ -36,14 +36,11 @@
 ## Apps
 | Key | Action |
 |---|---|
-| `Alt+K` | Open terminal (kitty) |
+| `Alt+K` | Open Ghostty |
 | `Alt+T` | Open Firefox Nightly |
-| `Alt+C` | Open Neko |
 
 ## System
 | Key | Action |
 |---|---|
 | `Alt+W` | Close window (Cmd+W) |
 | `Alt+Q` | Quit app (Cmd+Q) |
-| `Alt+A` | Warpd hint mode |
-| `Alt+Z` | Warpd normal mode |
