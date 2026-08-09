@@ -111,6 +111,27 @@ dapui.setup({
 	},
 })
 
+-- Explicitly focus DAP-UI panes on a mouse click. This complements the
+-- element-specific click actions supplied by cortex.nvim.
+local dapui_mouse_group = vim.api.nvim_create_augroup("CortexDapUiMouse", { clear = true })
+vim.api.nvim_create_autocmd("FileType", {
+	group = dapui_mouse_group,
+	pattern = { "dapui_*", "dap-repl" },
+	callback = function(args)
+		vim.keymap.set("n", "<LeftMouse>", function()
+			local position = vim.fn.getmousepos()
+			local winid = tonumber(position.winid)
+			if winid and winid > 0 and vim.api.nvim_win_is_valid(winid) then
+				vim.api.nvim_set_current_win(winid)
+				local line = tonumber(position.line)
+				if line and line > 0 then
+					pcall(vim.api.nvim_win_set_cursor, winid, { line, math.max(0, (tonumber(position.column) or 1) - 1) })
+				end
+			end
+		end, { buffer = args.buf, nowait = true, silent = true })
+	end,
+})
+
 -- nvim-dap-ui has no close event. Wrap its public lifecycle functions so
 -- Cortex windows follow the UI when it is closed manually as well as when a
 -- session terminates. No dap-ui fork is required.
