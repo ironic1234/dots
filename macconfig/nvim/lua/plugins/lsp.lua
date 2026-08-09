@@ -26,6 +26,7 @@ local servers = {
 	"ty",
 	"tsgo",
 	"neocmake",
+	"marksman",
 	"verible",
 }
 

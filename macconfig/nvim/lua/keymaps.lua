@@ -84,6 +84,22 @@ end, { desc = "Dropbar: Select next context" })
 vim.keymap.set("n", "gd", function()
 	vim.lsp.buf.definition()
 end, { desc = "LSP: Go to definition" })
+
+-- markdown-plus.nvim installs a buffer-local `gd` mapping for following links.
+-- Marksman provides the same functionality, so remove only markdown-plus's
+-- conflicting default and let the global LSP mapping above apply.
+vim.api.nvim_create_autocmd("FileType", {
+	pattern = { "markdown", "markdown.mdx" },
+	callback = function(args)
+		vim.api.nvim_buf_call(args.buf, function()
+			local mapping = vim.fn.maparg("gd", "n", false, true)
+			if mapping.buffer == 1 and mapping.rhs == "<Plug>(MarkdownPlusFollowLink)" then
+				vim.keymap.del("n", "gd", { buffer = args.buf })
+			end
+		end)
+	end,
+})
+
 vim.keymap.set("n", "gi", function()
 	vim.lsp.buf.implementation()
 end, { desc = "LSP: Go to implementation" })

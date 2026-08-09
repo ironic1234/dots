@@ -59,7 +59,7 @@ alt - 9 : yabai -m space --focus 9
 alt - 0 : yabai -m space --focus 10
 
 # ── Applications ─────────────────────────────────────────
-alt - k : open -na Ghostty --args --working-directory="$HOME"
+alt - k : open -a Ghostty --args --working-directory="$HOME"
 alt - t : open "/Applications/Firefox Nightly.app"
 
 # ── System ───────────────────────────────────────────────
