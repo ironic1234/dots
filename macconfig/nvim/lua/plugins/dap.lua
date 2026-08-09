@@ -1,10 +1,28 @@
-vim.pack.add({
+local dap_plugins = {
 	"https://github.com/nvim-neotest/nvim-nio",
 	"https://github.com/rcarriga/nvim-dap-ui",
 	"https://github.com/mfussenegger/nvim-dap",
-}, { confirm = false, load = true })
+	{
+		src = "https://github.com/ronakpjain/cortex.nvim",
+		name = "cortex.nvim",
+	},
+}
+
+vim.pack.add(dap_plugins, { confirm = false, load = true })
 
 local dap = require("dap")
+local cortex = require("cortex")
+cortex.setup({
+	rtos = {
+		enabled = true,
+		auto_open = true,
+		auto_refresh_on_stop = true,
+	},
+	callstack = {
+		auto_open = true,
+		auto_refresh_on_stop = true,
+	},
+})
 
 dap.adapters["lldb-dap"] = {
 	type = "executable",
@@ -32,7 +50,8 @@ dap.configurations.c = dap.configurations.cpp
 
 dap.adapters.python = {
 	type = "executable",
-	command = vim.fn.getenv("VIRTUAL_ENV") and (vim.fn.getenv("VIRTUAL_ENV") .. "/bin/python") or vim.fn.exepath("python3"),
+	command = vim.fn.getenv("VIRTUAL_ENV") and (vim.fn.getenv("VIRTUAL_ENV") .. "/bin/python")
+		or vim.fn.exepath("python3"),
 	args = { "-m", "debugpy.adapter" },
 }
 
