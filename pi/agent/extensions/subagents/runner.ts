@@ -94,6 +94,13 @@ export interface RunOptions {
 }
 
 const BUILTIN_TOOLS = ["read", "bash", "edit", "write", "grep", "find", "ls"] as const;
+const DEFAULT_SUBAGENT_SYSTEM_PROMPT = [
+	"You are a focused subagent inside a larger orchestration.",
+	"Work only on the assigned task and return the requested evidence or change; do not broaden the scope without telling the orchestrator.",
+	"Use tools efficiently: batch independent reads/searches, avoid rereading unchanged context, and validate meaningful work before concluding.",
+	"Treat the task's expected output as a contract. End with a concise result that separates verified findings, assumptions, and remaining risks.",
+	"If you are nearing the turn budget, stop exploring and summarize the best verified partial result rather than starting another tool loop.",
+].join("\n");
 
 const TOOL_FACTORIES: Record<(typeof BUILTIN_TOOLS)[number], (cwd: string) => { name: string; label: string; description: string; parameters: unknown; prepareArguments?: (args: unknown) => unknown; executionMode?: unknown; execute: (toolCallId: string, params: unknown, signal: AbortSignal | undefined, onUpdate: unknown, ctx: unknown) => Promise<unknown> }> = {
 	read: createReadToolDefinition as never,
@@ -294,9 +301,9 @@ export async function runSubagent(spec: SubagentTaskSpec, opts: RunOptions): Pro
 			streamFn: (m, context, options) => provider.streamSimple(m, context, options),
 			getApiKey: opts.getApiKey,
 			initialState: {
-				systemPrompt:
-					spec.systemPrompt ||
-					"You are a helpful assistant. Complete the task and end with a concise final answer (1-3 sentences) unless the task explicitly requests a longer output.",
+				systemPrompt: spec.systemPrompt
+					? `${DEFAULT_SUBAGENT_SYSTEM_PROMPT}\n\n${spec.systemPrompt}`
+					: DEFAULT_SUBAGENT_SYSTEM_PROMPT,
 				model,
 				thinkingLevel: (spec.thinking as ThinkingLevel) ?? "off",
 				tools: buildTools(spec, opts.defaultCwd, model, spec.thinking) as never,
@@ -316,18 +323,28 @@ export async function runSubagent(spec: SubagentTaskSpec, opts: RunOptions): Pro
 	// maxTurns and reported usage are per invocation, including when continuing
 	// a cached context window. Historical assistant messages must not count.
 	let turns = 0;
+	const maxTurns = typeof spec.maxTurns === "number" && Number.isFinite(spec.maxTurns) && spec.maxTurns > 0
+		? Math.max(1, Math.floor(spec.maxTurns))
+		: undefined;
+	let finalizationRequested = false;
 
-	const abortAgent = (reason: "timeout" | "maxTurns" | "parent") => {
+	const hasToolCalls = (message: AgentMessage): boolean =>
+		message.role === "assistant" && message.content.some((part) => part.type === "toolCall");
+
+	const markMaxTurns = () => {
+		if (result.maxTurnsKilled || result.timeoutKilled || result.aborted) return;
+		result.maxTurnsKilled = true;
+		result.stopReason = "maxTurns";
+		result.errorMessage = `Exceeded maxTurns=${maxTurns}`;
+		opts.onEvent?.({ type: "status", text: `⏰ ${spec.name}: maxTurns=${maxTurns} reached after finalization attempt` });
+	};
+
+	const abortAgent = (reason: "timeout" | "parent") => {
 		if (reason === "timeout") {
 			result.timeoutKilled = true;
 			result.stopReason = "timeout";
 			result.errorMessage = `Timed out after ${spec.timeoutSec}s`;
 			opts.onEvent?.({ type: "status", text: `⏰ ${spec.name}: timeout after ${spec.timeoutSec}s, aborting` });
-		} else if (reason === "maxTurns") {
-			result.maxTurnsKilled = true;
-			result.stopReason = "maxTurns";
-			result.errorMessage = `Exceeded maxTurns=${spec.maxTurns}`;
-			opts.onEvent?.({ type: "status", text: `⏰ ${spec.name}: maxTurns=${spec.maxTurns} reached, aborting` });
 		} else {
 			result.aborted = true;
 			result.stopReason = "aborted";
@@ -340,14 +357,31 @@ export async function runSubagent(spec: SubagentTaskSpec, opts: RunOptions): Pro
 		}
 	};
 
-	const checkMaxTurns = () => {
-		// Use > (not >=): the model is allowed maxTurns full assistant turns. The
-		// abort fires only when it tries to start turn maxTurns+1 with a tool call,
-		// so it gets maxTurns complete tool-use cycles instead of maxTurns-1.
-		if (spec.maxTurns && turns > spec.maxTurns && !result.maxTurnsKilled && !result.timeoutKilled && !result.aborted) {
-			abortAgent("maxTurns");
+	// A hard abort after the last tool call discards the most useful part of a
+	// run. At the budget boundary, give the agent one explicit finalization turn;
+	// only mark the run failed if it still requests tools instead of answering.
+	const stopAtTurnBudget = ({ message }: { message: AgentMessage }): boolean => {
+		if (!maxTurns || turns < maxTurns) return false;
+		if (hasToolCalls(message) && !finalizationRequested) {
+			finalizationRequested = true;
+			opts.onEvent?.({ type: "status", text: `⚠️ ${spec.name}: turn budget reached, requesting a concise final answer` });
+			agent?.steer({
+				role: "user",
+				content: [{
+					type: "text",
+					text: "Turn budget reached. Do not call any more tools. Give the best concise final answer now, clearly separating verified findings from anything still unverified.",
+				}],
+				timestamp: Date.now(),
+			});
+			return false;
 		}
+		if (finalizationRequested && hasToolCalls(message)) markMaxTurns();
+		return true;
 	};
+
+	// Set this per invocation so a cached keepSession agent gets the new budget
+	// and finalization state instead of retaining the first call's closure.
+	agent.shouldStopAfterTurn = stopAtTurnBudget;
 
 	// Throttled live "thinking" previews (message_update fires per streamed chunk).
 	const THINKING_THROTTLE_MS = 200;
@@ -383,9 +417,8 @@ export async function runSubagent(spec: SubagentTaskSpec, opts: RunOptions): Pro
 				if (msg.errorMessage) result.errorMessage = msg.errorMessage;
 			}
 			opts.onEvent?.({ type: "message", message: msg });
-			// Reaching the limit on a final answer is success. Abort only when the
-			// model is asking to continue into another tool/assistant turn.
-			if (msg.stopReason === "toolUse") checkMaxTurns();
+			// Turn-budget enforcement happens through Agent.shouldStopAfterTurn so
+			// current tool results finish and the agent can finalize gracefully.
 		}
 		if (event.type === "tool_execution_start") {
 			toolCallArgs.set(event.toolCallId, event.args ?? {});

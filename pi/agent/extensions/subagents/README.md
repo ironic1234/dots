@@ -32,8 +32,10 @@ The `subagent` tool is available to the main agent with three modes:
 | `tools`      | array  | Tool allowlist (`read`, `bash`, `edit`, `write`, `grep`, `find`, `ls`) |
 | `thinking`   | string | Reasoning level for the subagent model: `off` (default — cheap & fast), `minimal`, `low`, `medium`, `high`, `xhigh`, `max` (model-dependent). Raise it for harder tasks that benefit from reasoning; the level is passed straight through to the provider. |
 | `timeoutSec` | number | Abort the subagent after N seconds |
-| `maxTurns`   | number | Abort after N assistant turns |
+| `maxTurns`   | number | Assistant-turn budget; the runner reserves one finalization turn at the boundary |
 | `cwd`        | string | Working directory for the subagent |
+| `parallelLimit` | number | Maximum concurrent tasks in parallel mode (1–8) |
+| `onFailure`  | `stop`/`continue` | Chain policy; default `stop`, use `continue` only for recoverable best-effort pipelines |
 | `keepSession`| bool   | Return a `sessionId` to continue this context window later |
 | `sessionId`  | string | Continue an existing context window (from a prior `keepSession`) |
 
@@ -46,11 +48,12 @@ Subagents are stateless by default. To make one remember across calls:
 2. Later, call again with that `sessionId` — the same in-process agent
    continues its transcript, so it remembers everything from the earlier run.
 
-### Watchdogs
+### Budgets and recovery
 
 - `timeoutSec`: aborts the subagent after N seconds (honored even mid-stream).
-- `maxTurns`: counts assistant messages and aborts runaway tool loops.
+- `maxTurns`: bounds tool loops per invocation. At the boundary the runner allows one explicit finalization turn; if the model still requests tools, the result includes the partial transcript and remains resumable when `keepSession` was enabled.
 - Parent abort (Ctrl+C / goal-mode interrupt) propagates to running subagents.
+- Prefer a larger budget for implementation/review work than for scouting. Do not set an artificially low budget just to make a task look bounded.
 
 ## Agent files
 
@@ -59,26 +62,27 @@ Subagents are stateless by default. To make one remember across calls:
 
 Frontmatter keys: `name`, `description`, `model`, `tools`, `thinking`,
 `timeoutSec`, `maxTurns`. See the bundled samples (`scout`, `planner`,
-`worker`, `reviewer`) in `agent/agents/`.
+`worker`, `reviewer`) in `agent/agents/`. The reusable orchestration playbook is
+`agent/skills/subagent-orchestration/SKILL.md`.
 
 ## Orchestrator pattern (strong planner + cheap workers)
 
 Run the main pi session on your strongest model and delegate heavy or parallelizable
 work to cheap worker models via `subagent`:
 
-- Every session's system prompt includes a **Subagent extension** block with an
-  **Orchestrator pattern** section and a live **cheapest configured worker models**
-  catalog (sorted by price, from the model registry, top 6) so the planner can
-  pick workers without knowing model ids by heart.
-- Set `model: "provider/id"` per task — each subagent runs any registered model;
-  `thinking: "off"` for cheap/fast workers.
-- Workers without an explicit `systemPrompt` get a default that asks for a
-  **concise final answer (1-3 sentences)**, so results stay small in the planner's
-  context.
-- `parallel` for independent fan-out, `chain` for dependent steps (`{previous}`),
-  `keepSession`/`sessionId` for workers that need shared memory.
-- `/subagents` opens a live browser showing per-run cost, activity, and
-  transcripts so you can watch worker spend.
+- Decompose broad work into focused tasks with explicit expected outputs. A reliable
+  default is scout/planner → focused worker → reviewer.
+- Use `tasks` plus `parallelLimit: 2-4` for independent research. Use `chain` and
+  `{previous}` for dependent phases. Avoid overlapping mutations in parallel tasks.
+- Set `onFailure: "continue"` only when a later chain step can recover from partial
+  evidence; otherwise let the default stop policy surface the failure.
+- Use `keepSession: true` for work that may need follow-up. If a result includes a
+  `[Session: ...]` handle, resume that context with `sessionId` and a narrower task.
+- Choose `maxTurns`/`timeoutSec` from task complexity and inspect every result status;
+  a partial result is not completion.
+- Every session's system prompt includes these orchestration controls and the live
+  cheapest configured model catalog, so the planner can choose workers deliberately.
+- `/subagents` opens a live browser showing per-run cost, activity, and transcripts.
 
 ## Monitoring & inspection
 

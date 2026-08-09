@@ -132,6 +132,17 @@ describe("subagent runner cancellation", () => {
 		expect(result.stopReason).toBe("maxTurns");
 		expect(result.errorMessage).toBe("Exceeded maxTurns=1");
 	});
+
+	test("uses one finalization turn instead of killing a productive run at the boundary", async () => {
+		const stub = stubProvider({ toolTurns: 1, finalText: "DONE AFTER FINALIZATION" });
+		const result = await runSubagent(spec({ maxTurns: 1 }), opts(stub));
+
+		expect(result.exitCode).toBe(0);
+		expect(result.stopReason).toBe("stop");
+		expect(result.maxTurnsKilled).toBe(false);
+		expect(getFinalOutput(result.messages)).toBe("DONE AFTER FINALIZATION");
+		expect(stub.invocations).toBe(2);
+	});
 });
 
 describe("subagent runner live events", () => {

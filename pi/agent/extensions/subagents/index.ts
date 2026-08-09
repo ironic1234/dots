@@ -66,6 +66,17 @@ const UPDATE_THROTTLE_MS = 200;
 const MESSAGE_TEXT_CAP = 4000;
 const MESSAGE_RESULT_CAP = 2000;
 const MAX_STORED_ACTIVITIES = 200;
+const ORCHESTRATION_GUIDE = [
+	"Orchestrator controls (use deliberately):",
+	"1. Decompose large work into focused tasks with an explicit expected output; do not ask one worker to explore, implement, and review everything.",
+	"2. Use `tasks` plus `parallelLimit` (usually 2-4) for independent work. Keep each parallel task self-contained and avoid overlapping file mutations.",
+	"3. Use `chain` for dependencies. Put `{previous}` in the next task so it receives the prior result; use `onFailure: \"continue\"` only for best-effort pipelines, otherwise failures stop the chain.",
+	"4. Use `keepSession: true` when a task may need follow-up. If the result contains `[Session: ...]`, resume with that `sessionId` and a focused continuation task instead of restarting.",
+	"5. Set `maxTurns` and `timeoutSec` per task based on complexity. The runner reserves a finalization turn at the turn boundary, but workers should stop investigating and summarize when the budget is nearly used.",
+	"6. Use `tools` and `cwd` to constrain each worker. Prefer read-only tools for scouts/planners/reviewers and mutation tools only for implementation workers.",
+	"7. Inspect every result's success/failure status. A partial or failed worker is evidence, not completion; route it to a continuation, another worker, or a reviewer.",
+	"8. A reliable default workflow is scout/planner → focused worker → reviewer, with parallel scouts when the questions are independent.",
+].join("\n");
 
 // ---------------------------------------------------------------------------
 // Types & helpers
@@ -76,15 +87,19 @@ const ThinkingLevelSchema = StringEnum(["off", "minimal", "low", "medium", "high
 		"Reasoning level for the subagent model. Default: off (cheap & fast). Raise to low/high for harder tasks that benefit from reasoning; not all models support every level.",
 });
 
+const FailurePolicySchema = StringEnum(["stop", "continue"] as const, {
+	description: "Chain behavior after a failed step. Default: stop. Use continue only for best-effort pipelines.",
+});
+
 const TaskItem = Type.Object({
 	agent: Type.Optional(Type.String({ description: "Agent definition name (from agents/)" })),
-	task: Type.String({ description: "Task text to delegate. Use {previous} in chain mode for prior step output." }),
+	task: Type.String({ description: "Self-contained task with an explicit expected output. Use {previous} in chain mode for prior step output." }),
 	model: Type.Optional(Type.String({ description: 'Arbitrary model: "provider/id", "provider/*", or bare id' })),
 	systemPrompt: Type.Optional(Type.String({ description: "Inline system prompt (overrides agent file prompt)" })),
 	tools: Type.Optional(Type.Array(Type.String(), { description: "Tool allowlist for this subagent" })),
 	thinking: Type.Optional(ThinkingLevelSchema),
 	timeoutSec: Type.Optional(Type.Number({ description: "Kill the subagent after this many seconds" })),
-	maxTurns: Type.Optional(Type.Number({ description: "Kill the subagent after this many assistant turns" })),
+	maxTurns: Type.Optional(Type.Integer({ minimum: 1, description: "Assistant-turn budget; the runner reserves one finalization turn at the boundary" })),
 	cwd: Type.Optional(Type.String({ description: "Working directory for the subagent" })),
 	sessionId: Type.Optional(Type.String({ description: "Continue an existing subagent context window (from keepSession)" })),
 	keepSession: Type.Optional(Type.Boolean({ description: "Save the session so it can be continued later" })),
@@ -102,14 +117,15 @@ const SubagentParams = Type.Object({
 	tools: Type.Optional(Type.Array(Type.String(), { description: "Tool allowlist (single mode)" })),
 	thinking: Type.Optional(ThinkingLevelSchema),
 	timeoutSec: Type.Optional(Type.Number({ description: "Kill after this many seconds (single mode)" })),
-	maxTurns: Type.Optional(Type.Number({ description: "Kill after this many assistant turns (single mode)" })),
+	maxTurns: Type.Optional(Type.Integer({ minimum: 1, description: "Assistant-turn budget; the runner reserves one finalization turn at the boundary" })),
 	cwd: Type.Optional(Type.String({ description: "Working directory for the subagent" })),
 	sessionId: Type.Optional(Type.String({ description: "Continue an existing subagent context window" })),
 	keepSession: Type.Optional(Type.Boolean({ description: "Save the session so it can be continued later" })),
 	tasks: Type.Optional(Type.Array(TaskItem, { description: "Parallel mode: array of tasks to run concurrently" })),
-	chain: Type.Optional(Type.Array(TaskItem, { description: "Chain mode: sequential steps, {previous} = prior step output" })),
+	chain: Type.Optional(Type.Array(TaskItem, { description: "Chain mode: sequential dependent steps, {previous} = prior step output" })),
+	onFailure: Type.Optional(FailurePolicySchema),
 	agentScope: Type.Optional(AgentScopeSchema),
-	parallelLimit: Type.Optional(Type.Number({ description: "Max concurrent subagents (default 1 = sequential; parallel subagents interleave on the same event loop)" })),
+	parallelLimit: Type.Optional(Type.Integer({ minimum: 1, maximum: MAX_PARALLEL_TASKS, description: "Max concurrent subagents (default 1 = sequential; use 2-4 for independent tasks)" })),
 });
 
 type TaskItemType = Static<typeof TaskItem>;
@@ -279,9 +295,16 @@ function buildTask(
 // ---------------------------------------------------------------------------
 
 function resultOutput(r: SubagentRunResult): string {
-	const output = isFailedResult(r)
-		? r.errorMessage || r.stderr || getFinalOutput(r.messages) || "(no output)"
-		: getFinalOutput(r.messages) || "(no output)";
+	const finalOutput = getFinalOutput(r.messages);
+	let output: string;
+	if (isFailedResult(r)) {
+		const diagnostic = r.errorMessage || r.stderr || "Subagent stopped before producing a final answer.";
+		output = finalOutput
+			? `${diagnostic}\n\nPartial output before stop:\n${finalOutput}`
+			: diagnostic;
+	} else {
+		output = finalOutput || "(no output)";
+	}
 	const capped = truncateBytes(output, PARENT_OUTPUT_CAP);
 	// Make multi-turn sessions actually threadable: the orchestrator must see the
 	// session id in the visible result (details are not shown to the model).
@@ -535,15 +558,11 @@ export default function (pi: ExtensionAPI) {
 			`Modes: single ({task, model?, agent?|systemPrompt?, tools?, thinking?, timeoutSec?, maxTurns?, cwd?}) · parallel ({tasks:[...]}, sequential unless parallelLimit>1) · chain ({chain:[...]}, {previous} = prior step output).`,
 			`model: "provider/id" or bare id (validated before running). Named agents: ${namedAgents()} (or use inline systemPrompt).`,
 			"Multi-turn memory: keepSession:true returns `[Session: <uuid>]` in the result; pass that uuid as sessionId in a later call to continue the SAME context window.",
-			"Watchdogs: timeoutSec / maxTurns abort runaway subagents; parent aborts propagate.",
+			"Budgets: timeoutSec aborts on wall-clock expiry; maxTurns requests a concise finalization turn before stopping; parent aborts propagate.",
 		];
+		lines.push(ORCHESTRATION_GUIDE);
 		const catalog = workerCatalog(ctx);
-		if (catalog) {
-			lines.push(
-				"Orchestrator pattern: you're the planner — delegate heavy or parallelizable work to cheap worker models instead of doing it in your own context. Pick the cheapest model that fits each subtask; keep task texts narrow with an explicit expected output; set thinking to off for cheap/fast workers; parallel for independent fan-out; chain for dependent steps ({previous}); keepSession for shared worker memory. The result text is the worker's concise final answer.",
-				`Cheapest configured worker models: ${catalog}.`,
-			);
-		}
+		if (catalog) lines.push(`Cheapest configured worker models: ${catalog}.`);
 		return lines.join("\n");
 	};
 
@@ -557,24 +576,27 @@ export default function (pi: ExtensionAPI) {
 		name: "subagent",
 		label: "Subagent",
 		description: [
-			"Delegate tasks to subagents with isolated context windows, any registered model.",
-			"Single: {agent|model|systemPrompt, task}. Parallel: {tasks:[...]}. Chain: {chain:[...]} with {previous} placeholder.",
+			"Delegate tasks to subagents with isolated context windows and explicit orchestration controls.",
+			"Single: {task}. Parallel: {tasks:[...], parallelLimit}. Chain: {chain:[...], onFailure, {previous}}.",
 			'Model is arbitrary: "provider/id", "provider/*", or bare id; validated before running.',
-			"Each subagent runs in-process with its own context window (no extra pi processes).",
-			"Tasks run sequentially by default; each subagent is a separate in-process Agent, so concurrency is limited to 1 unless parallelLimit > 1.",
-			"keepSession:true returns sessionId to continue the same context window later.",
-			"thinking: reasoning level for the subagent model (off by default; raise to low/high for harder tasks).",
-			"timeoutSec / maxTurns watchdog the subagent.",
+			"Use focused tasks with an explicit expected output; do not make one worker own discovery, implementation, and review.",
+			"Use parallel for independent tasks, chain for dependencies, and keepSession/sessionId to continue partial work without restarting.",
+			"maxTurns reserves a finalization turn; if a run still fails, its result includes partial output and a session id when keepSession was enabled.",
+			"thinking, tools, cwd, timeoutSec, maxTurns, parallelLimit, and onFailure are orchestration controls, not decoration.",
 			`Agents: ${formatAgentList(discoverAgents(process.cwd(), "user").agents, 5).text}.`,
 		].join(" "),
 		parameters: SubagentParams,
 		promptGuidelines: [
-			"Use subagent to delegate independent, parallelizable work to a fresh context window.",
-			"Prefer task-specific systemPrompt and tools allowlists so subagents stay focused.",
+			"Use subagent to delegate independent, parallelizable work to a fresh context window; set parallelLimit to 2-4 when concurrency is useful.",
+			"Prefer a scout/planner → focused worker → reviewer workflow instead of one broad worker call.",
+			"Use subagent chain with {previous} for dependent phases; set onFailure to continue only when later phases can recover from partial evidence.",
+			"Use keepSession when a task may need follow-up; resume a max-turn or partial run with its returned sessionId and a narrower task.",
+			"Prefer task-specific systemPrompt and tools allowlists so subagents stay focused and finish within their turn budget.",
 		],
 
 
 		async execute(_toolCallId, params, signal, onUpdate, ctx) {
+			const parentSignal = signal ?? new AbortController().signal;
 			const groupId = randomUUID();
 			const agentScope: AgentScope = params.agentScope ?? "user";
 			const discovery = discoverAgents(ctx.cwd, agentScope);
@@ -598,7 +620,7 @@ export default function (pi: ExtensionAPI) {
 				};
 			}
 
-			if (signal.aborted) {
+			if (parentSignal.aborted) {
 				return {
 					content: [{ type: "text", text: "Subagent request canceled before start because the parent request was aborted." }],
 					details: {},
@@ -698,7 +720,7 @@ export default function (pi: ExtensionAPI) {
 						}
 					},
 					sessionCache,
-					signal,
+					signal: parentSignal,
 					onEvent: (event) => {
 						applyRunnerEvent(live, event);
 						emitDashboard(mode);
@@ -730,12 +752,13 @@ export default function (pi: ExtensionAPI) {
 			// ---- Chain mode ----
 			if (params.chain && params.chain.length > 0) {
 				const results: SubagentRunResult[] = [];
+				const continueOnFailure = params.onFailure === "continue";
 				let previousOutput = "";
 				for (let i = 0; i < params.chain.length; i++) {
 					const stepItem = params.chain[i];
 					const result = await runOne(stepItem, "chain", i + 1, previousOutput);
 					results.push(result);
-					if (isFailedResult(result)) {
+					if (isFailedResult(result) && !continueOnFailure) {
 						return {
 							content: [
 								{
@@ -747,11 +770,21 @@ export default function (pi: ExtensionAPI) {
 							isError: true,
 						};
 					}
-					previousOutput = getFinalOutput(result.messages) || previousOutput;
+					if (isFailedResult(result)) {
+						previousOutput = `Step ${i + 1} (${result.name}) failed. Treat this as partial evidence and continue only if the next step can recover:\n\n${resultOutput(result)}`;
+					} else {
+						previousOutput = getFinalOutput(result.messages) || previousOutput;
+					}
 				}
+				const last = results[results.length - 1]!;
+				const failedSteps = results.filter((result) => isFailedResult(result)).length;
+				const prefix = failedSteps > 0
+					? `Chain completed with ${failedSteps} failed step${failedSteps === 1 ? "" : "s"}; later steps were allowed to continue.\n\n`
+					: "";
 				return {
-					content: [{ type: "text", text: resultOutput(results[results.length - 1]) }],
+					content: [{ type: "text", text: `${prefix}${resultOutput(last)}` }],
 					details: makeDetails(results, "chain"),
+					isError: isFailedResult(last),
 				};
 			}
 
@@ -778,7 +811,7 @@ export default function (pi: ExtensionAPI) {
 				while (true) {
 					// Do not claim queued work after a parent cancellation. Active runs
 					// still receive the signal through runSubagent and stop promptly.
-					if (signal.aborted) return;
+					if (parentSignal.aborted) return;
 					const current = nextIndex++;
 					if (current >= tasks.length) return;
 					const result = await runOne(tasks[current], "parallel");
