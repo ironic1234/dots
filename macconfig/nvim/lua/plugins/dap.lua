@@ -82,11 +82,123 @@ end
 
 local dapui = require("dapui")
 -- Replace the generic stacks pane (which is mostly the GDB "Remote target")
--- with Cortex's current-thread stack, and put RTOS + REPL/console together
--- in the bottom tray. Live Watch remains its own right-hand window.
+-- with Cortex's current-thread stack. The bottom tray is a single slot; its
+-- RTOS, REPL, and Console buffers are switched instead of being squeezed into
+-- three narrow splits.
 dapui.register_element("cortex_callstack", cortex.callstack_element())
 dapui.register_element("cortex_rtos", cortex.rtos_element())
 dapui.register_element("cortex_peripherals", cortex.peripheral_element())
+
+local bottom_tabs = {
+	items = {
+		{ id = "cortex_rtos", label = "RTOS" },
+		{ id = "repl", label = "REPL" },
+		{ id = "console", label = "Console" },
+	},
+	index = 1,
+	mapped = {},
+	fallback_buf = nil,
+}
+
+local function bottom_fallback_buffer()
+	if bottom_tabs.fallback_buf and vim.api.nvim_buf_is_valid(bottom_tabs.fallback_buf) then
+		return bottom_tabs.fallback_buf
+	end
+	bottom_tabs.fallback_buf = vim.api.nvim_create_buf(false, true)
+	vim.bo[bottom_tabs.fallback_buf].buftype = "nofile"
+	vim.bo[bottom_tabs.fallback_buf].bufhidden = "hide"
+	vim.bo[bottom_tabs.fallback_buf].swapfile = false
+	return bottom_tabs.fallback_buf
+end
+
+local function bottom_current()
+	return bottom_tabs.items[bottom_tabs.index]
+end
+
+local function bottom_window()
+	local ok, windows = pcall(require, "dapui.windows")
+	local layout = ok and windows.layouts[2]
+	if not layout or not layout.opened_wins then
+		return nil
+	end
+	for _, winid in ipairs(layout.opened_wins) do
+		if vim.api.nvim_win_is_valid(winid) then
+			return winid
+		end
+	end
+	return nil
+end
+
+local function bottom_winbar()
+	local labels = {}
+	for index, item in ipairs(bottom_tabs.items) do
+		labels[#labels + 1] = index == bottom_tabs.index and ("[ " .. item.label .. " ]") or ("  " .. item.label .. "  ")
+	end
+	return table.concat(labels, "   ") .. "    <Tab>/<S-Tab>  <leader>bn/bN"
+end
+
+local function map_bottom_buffer(bufnr)
+	if bottom_tabs.mapped[bufnr] or not vim.api.nvim_buf_is_valid(bufnr) then
+		return
+	end
+	bottom_tabs.mapped[bufnr] = true
+	vim.keymap.set("n", "<Tab>", function()
+		bottom_tabs.select(bottom_tabs.index + 1)
+	end, { buffer = bufnr, nowait = true, silent = true, desc = "Debug: Next bottom pane" })
+	vim.keymap.set("n", "<S-Tab>", function()
+		bottom_tabs.select(bottom_tabs.index - 1)
+	end, { buffer = bufnr, nowait = true, silent = true, desc = "Debug: Previous bottom pane" })
+end
+
+function bottom_tabs.buffer()
+	local item = bottom_current()
+	local element = dapui.elements[item.id]
+	if element and element.buffer then
+		local bufnr = element.buffer()
+		map_bottom_buffer(bufnr)
+		return bufnr
+	end
+	return bottom_fallback_buffer()
+end
+
+function bottom_tabs.render()
+	local item = bottom_current()
+	local element = dapui.elements[item.id]
+	if element and element.render then
+		element.render()
+	end
+end
+
+function bottom_tabs.select(index)
+	if index < 1 then
+		index = #bottom_tabs.items
+	elseif index > #bottom_tabs.items then
+		index = 1
+	end
+	bottom_tabs.index = index
+	local bufnr = bottom_tabs.buffer()
+	bottom_tabs.render()
+	local winid = bottom_window()
+	if winid and vim.api.nvim_buf_is_valid(bufnr) then
+		vim.api.nvim_win_set_buf(winid, bufnr)
+		vim.api.nvim_win_set_option(winid, "winbar", bottom_winbar())
+	end
+end
+
+function bottom_tabs.next()
+	bottom_tabs.select(bottom_tabs.index + 1)
+end
+
+function bottom_tabs.previous()
+	bottom_tabs.select(bottom_tabs.index - 1)
+end
+
+dapui.register_element("cortex_bottom", {
+	buffer = bottom_tabs.buffer,
+	render = bottom_tabs.render,
+	allow_without_session = true,
+})
+
 dapui.setup({
 	layouts = {
 		{
@@ -101,15 +213,28 @@ dapui.setup({
 		},
 		{
 			elements = {
-				{ id = "cortex_rtos", size = 0.60 },
-				{ id = "repl", size = 0.20 },
-				{ id = "console", size = 0.20 },
+				{ id = "cortex_bottom", size = 1.0 },
 			},
 			size = 14,
 			position = "bottom",
 		},
 	},
 })
+
+vim.keymap.set("n", "<leader>bn", bottom_tabs.next, { desc = "Debug: Next bottom pane" })
+vim.keymap.set("n", "<leader>bN", bottom_tabs.previous, { desc = "Debug: Previous bottom pane" })
+for index, item in ipairs(bottom_tabs.items) do
+	vim.keymap.set("n", "<leader>b" .. index, function()
+		bottom_tabs.select(index)
+	end, { desc = "Debug: Show " .. item.label })
+end
+vim.api.nvim_create_user_command("CortexDebugBottomNext", bottom_tabs.next, {})
+vim.api.nvim_create_user_command("CortexDebugBottomPrevious", bottom_tabs.previous, {})
+for index, item in ipairs(bottom_tabs.items) do
+	vim.api.nvim_create_user_command("CortexDebugBottom" .. item.label, function()
+		bottom_tabs.select(index)
+	end, {})
+end
 
 -- Explicitly focus DAP-UI panes on a mouse click. This complements the
 -- element-specific click actions supplied by cortex.nvim.
@@ -142,7 +267,9 @@ local dapui_toggle_raw = dapui.toggle
 
 dapui.open = function(args)
 	dapui_open = true
-	return dapui_open_raw(args)
+	local result = dapui_open_raw(args)
+	bottom_tabs.select(bottom_tabs.index)
+	return result
 end
 
 dapui.close = function(args)
@@ -160,6 +287,7 @@ dapui.toggle = function(args)
 		cortex.close_views()
 	else
 		dapui_open = true
+		bottom_tabs.select(bottom_tabs.index)
 	end
 	return result
 end

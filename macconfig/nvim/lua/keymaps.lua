@@ -63,9 +63,7 @@ vim.keymap.set("n", "<leader>bx", function()
 end, { desc = "Debug: Run to cursor" })
 
 -- DAP: REPL
-vim.keymap.set("n", "<leader>brl", function()
-	require("dap").repl.open()
-end, { desc = "Debug: Open REPL" })
+vim.keymap.set("n", "<leader>brl", "<Cmd>CortexDebugBottomREPL<CR>", { desc = "Debug: Show REPL" })
 vim.keymap.set("n", "<leader>brq", function()
 	require("dap").repl.close()
 end, { desc = "Debug: Close REPL" })
@@ -77,7 +75,7 @@ end, { desc = "Debug: Toggle UI" })
 
 -- Cortex auxiliary views
 vim.keymap.set("n", "<leader>cw", "<Cmd>CortexDebugWatch<CR>", { desc = "Cortex: Toggle live watch" })
-vim.keymap.set("n", "<leader>cr", "<Cmd>CortexDebugRTOS<CR>", { desc = "Cortex: Toggle FreeRTOS tasks" })
+vim.keymap.set("n", "<leader>cr", "<Cmd>CortexDebugBottomRTOS<CR>", { desc = "Cortex: Show FreeRTOS tasks" })
 vim.keymap.set("n", "<leader>cs", "<Cmd>CortexDebugCallStack<CR>", { desc = "Cortex: Toggle call stack" })
 vim.keymap.set("n", "<leader>cp", "<Cmd>CortexDebugPeripheral<CR>", { desc = "Cortex: Toggle peripherals" })
 
