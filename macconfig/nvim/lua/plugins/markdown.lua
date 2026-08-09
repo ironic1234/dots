@@ -6,7 +6,9 @@ vim.pack.add({
 	"https://github.com/yousefhadder/markdown-plus.nvim",
 }, { confirm = false, load = true })
 
-require("render-markdown").setup({})
+require("render-markdown").setup({
+	file_types = { "markdown", "pi" },
+})
 require("mdmath").setup({})
 
 local ok, markdown_plus = pcall(require, "markdown-plus")
