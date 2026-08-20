@@ -7,13 +7,19 @@ description: Plan and coordinate reliable subagent workflows with parallel, chai
 
 Use this skill when a task benefits from delegated research, implementation, or review. The orchestrator owns decomposition, sequencing, recovery, and synthesis; subagents own focused work.
 
+## When to delegate
+
+Use `subagent` whenever one or more focused delegated tasks would materially improve the work. Choose delegation based on task complexity, independence, context isolation, and expected efficiency—not on a minimum number of subagent runs. Do not add redundant subagents merely to justify delegation.
+
 ## Default workflow
 
-1. **Decompose** the request into narrow tasks with an explicit expected output.
-2. **Scout or plan first** when the repository or requirements are unfamiliar.
-3. **Fan out independent work** with `tasks` and `parallelLimit: 2-4`. Keep parallel tasks read-only or ensure their mutation targets do not overlap.
-4. **Chain dependent work** with `chain` and `{previous}`. A reliable implementation flow is scout/planner → focused worker → reviewer.
-5. **Synthesize and verify** the results in the orchestrator. A worker's partial or failed result is evidence, not completion.
+1. **Decide whether delegation is beneficial** for the whole request; stay in the main thread when delegation would add unnecessary overhead.
+2. **Decompose** the request into narrow tasks with an explicit expected output.
+3. **Scout or plan first** when the repository or requirements are unfamiliar.
+4. **Fan out independent work** with `tasks` and `parallelLimit: 2-4`. Keep parallel tasks read-only or ensure their mutation targets do not overlap.
+5. **Keep the main thread productive** while delegated work runs: launch qualifying groups with `background: true`, continue independent discovery, implementation, or validation instead of idling, and use `subagent_status`/`subagent_wait` only at genuine dependency or synthesis points.
+6. **Chain dependent work** with `chain` and `{previous}`. A reliable implementation flow is scout/planner → focused worker → reviewer.
+7. **Synthesize and verify** the results in the orchestrator. A worker's partial or failed result is evidence, not completion.
 
 ## Controls
 
