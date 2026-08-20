@@ -16,7 +16,8 @@
  *   - Multi-turn prompting: `keepSession: true` returns a sessionId; passing
  *     that `sessionId` later continues the SAME context window (memory)
  *   - Watchdogs: per-task timeout and maxTurns abort the subagent
- *   - Abort propagation from the parent agent's signal
+ *   - Background groups that continue after the launch tool returns, with status/wait controls
+ *   - Abort propagation from the parent agent's signal for synchronous runs; background groups stop on session shutdown
  *   - Monitoring: run records persisted via pi.appendEntry; `/subagents`
  *     command lists active/recent runs with usage; streaming TUI updates
  *   - Output caps so subagent results never flood the orchestrator's context
@@ -40,6 +41,7 @@ import {
 } from "./runner.ts";
 import {
 	formatTokens,
+	formatElapsed,
 	isFailedResult,
 	liveDashboardText,
 	preview,
@@ -76,6 +78,7 @@ const ORCHESTRATION_GUIDE = [
 	"6. Use `tools` and `cwd` to constrain each worker. Prefer read-only tools for scouts/planners/reviewers and mutation tools only for implementation workers.",
 	"7. Inspect every result's success/failure status. A partial or failed worker is evidence, not completion; route it to a continuation, another worker, or a reviewer.",
 	"8. A reliable default workflow is scout/planner → focused worker → reviewer, with parallel scouts when the questions are independent.",
+	"9. When delegation is beneficial and independent work remains, set background:true so the main thread can continue; monitor with subagent_status and wait with subagent_wait only at dependency or synthesis points.",
 ].join("\n");
 
 // ---------------------------------------------------------------------------
@@ -121,11 +124,21 @@ const SubagentParams = Type.Object({
 	cwd: Type.Optional(Type.String({ description: "Working directory for the subagent" })),
 	sessionId: Type.Optional(Type.String({ description: "Continue an existing subagent context window" })),
 	keepSession: Type.Optional(Type.Boolean({ description: "Save the session so it can be continued later" })),
+	background: Type.Optional(Type.Boolean({ description: "Return immediately and let this group run in the background; use subagent_status/subagent_wait for progress and results" })),
 	tasks: Type.Optional(Type.Array(TaskItem, { description: "Parallel mode: array of tasks to run concurrently" })),
 	chain: Type.Optional(Type.Array(TaskItem, { description: "Chain mode: sequential dependent steps, {previous} = prior step output" })),
 	onFailure: Type.Optional(FailurePolicySchema),
 	agentScope: Type.Optional(AgentScopeSchema),
 	parallelLimit: Type.Optional(Type.Integer({ minimum: 1, maximum: MAX_PARALLEL_TASKS, description: "Max concurrent subagents (default 1 = sequential; use 2-4 for independent tasks)" })),
+});
+
+const BackgroundStatusParams = Type.Object({
+	groupId: Type.Optional(Type.String({ description: "Background group id returned by subagent with background:true" })),
+});
+
+const BackgroundWaitParams = Type.Object({
+	groupId: Type.String({ description: "Background group id returned by subagent with background:true" }),
+	timeoutSec: Type.Optional(Type.Number({ minimum: 0, description: "Stop waiting after this many seconds; the background group keeps running" })),
 });
 
 type TaskItemType = Static<typeof TaskItem>;
@@ -134,10 +147,37 @@ interface ResolvedTask extends SubagentTaskSpec {
 	agentSource?: string;
 }
 
+type RunKind = "single" | "parallel" | "chain";
+
+type GroupExecutionResult = {
+	mode: RunKind;
+	results: SubagentRunResult[];
+	text: string;
+	isError: boolean;
+};
+
+type BackgroundWaitDetails = {
+	groupId: string;
+	status: "missing" | "running" | "completed";
+	mode?: RunKind;
+	results?: SubagentRunResult[];
+};
+
+interface BackgroundGroup {
+	groupId: string;
+	mode: RunKind;
+	status: "running" | "ok" | "error";
+	startedAt: string;
+	completedAt?: string;
+	controller: AbortController;
+	promise: Promise<GroupExecutionResult>;
+	result?: GroupExecutionResult;
+}
+
 interface RunRecord {
 	runId: string;
 	groupId: string;
-	kind: "single" | "parallel" | "chain";
+	kind: RunKind;
 	name: string;
 	model: string;
 	task: string;
@@ -401,6 +441,7 @@ export default function (pi: ExtensionAPI) {
 
 	// ---- Live run registry (browsable via /subagents while running) ----
 	const liveRuns = new Map<string, LiveRun>();
+	const backgroundGroups = new Map<string, BackgroundGroup>();
 
 	const trimActivities = (live: LiveRun) => {
 		if (live.activities.length > 300) live.activities.splice(0, live.activities.length - 300);
@@ -519,6 +560,44 @@ export default function (pi: ExtensionAPI) {
 		});
 	};
 
+	const runsForGroup = (groupId: string): LiveRun[] =>
+		[...liveRuns.values()]
+			.filter((run) => run.groupId === groupId)
+			.sort((a, b) => a.startTime - b.startTime);
+
+	const formatBackgroundStatus = (requestedGroupId?: string): string => {
+		const groups = [...backgroundGroups.values()]
+			.filter((group) => !requestedGroupId || group.groupId === requestedGroupId)
+			.sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt));
+		if (groups.length === 0) {
+			return requestedGroupId
+				? `No background subagent group found for ${requestedGroupId}.`
+				: "No background subagent groups have been started in this session.";
+		}
+
+		const lines: string[] = [];
+		for (const group of groups) {
+			const runs = runsForGroup(group.groupId);
+			const elapsed = (group.completedAt ? Date.parse(group.completedAt) : Date.now()) - Date.parse(group.startedAt);
+			const icon = statusIcon(group.status === "running" ? "running" : group.status === "ok" ? "ok" : "error");
+			lines.push(`${icon} ${group.groupId} · ${group.mode} · ${group.status} · ${formatElapsed(elapsed)}`);
+			if (runs.length === 0) {
+				lines.push("  (no subagent runs have started yet)");
+			} else {
+				for (const run of runs) {
+					const detail = run.status === "running"
+						? "running"
+						: run.errorMessage || run.stopReason || "finished";
+					lines.push(`  ${statusIcon(run.status)} ${run.name} · ${run.model} · ${detail}`);
+				}
+			}
+			if (group.result && group.status !== "running") {
+				lines.push(`  result: ${truncateBytes(group.result.text, 1600)}`);
+			}
+		}
+		return truncateBytes(lines.join("\n"), PARENT_OUTPUT_CAP);
+	};
+
 
 	// ---- Model-facing capability guide: injected before every agent start ----
 	// (before_agent_start chains with other extensions' handlers, e.g. goal-mode.)
@@ -555,7 +634,7 @@ export default function (pi: ExtensionAPI) {
 		const lines = [
 			"## Subagent extension",
 			"You have the `subagent` tool: delegate work to a subagent with its OWN isolated context window and any registered model. Use it for independent research/analysis/edits that would otherwise pollute your context.",
-			`Modes: single ({task, model?, agent?|systemPrompt?, tools?, thinking?, timeoutSec?, maxTurns?, cwd?}) · parallel ({tasks:[...]}, sequential unless parallelLimit>1) · chain ({chain:[...]}, {previous} = prior step output).`,
+			`Modes: single ({task, model?, agent?|systemPrompt?, tools?, thinking?, timeoutSec?, maxTurns?, cwd?}) · parallel ({tasks:[...]}, sequential unless parallelLimit>1) · chain ({chain:[...]}, {previous} = prior step output). Add background:true to return immediately; use subagent_status/subagent_wait to monitor and collect results.`,
 			`model: "provider/id" or bare id (validated before running). Named agents: ${namedAgents()} (or use inline systemPrompt).`,
 			"Multi-turn memory: keepSession:true returns `[Session: <uuid>]` in the result; pass that uuid as sessionId in a later call to continue the SAME context window.",
 			"Budgets: timeoutSec aborts on wall-clock expiry; maxTurns requests a concise finalization turn before stopping; parent aborts propagate.",
@@ -576,18 +655,21 @@ export default function (pi: ExtensionAPI) {
 		name: "subagent",
 		label: "Subagent",
 		description: [
-			"Delegate tasks to subagents with isolated context windows and explicit orchestration controls.",
+			"Delegate tasks to subagents with isolated context windows and explicit orchestration controls. Use background:true when the main thread should continue while they run.",
 			"Single: {task}. Parallel: {tasks:[...], parallelLimit}. Chain: {chain:[...], onFailure, {previous}}.",
 			'Model is arbitrary: "provider/id", "provider/*", or bare id; validated before running.',
 			"Use focused tasks with an explicit expected output; do not make one worker own discovery, implementation, and review.",
 			"Use parallel for independent tasks, chain for dependencies, and keepSession/sessionId to continue partial work without restarting.",
 			"maxTurns reserves a finalization turn; if a run still fails, its result includes partial output and a session id when keepSession was enabled.",
+			"Background groups keep running after the launch tool returns, so continue independent main-thread work and synchronize with subagent_wait only at dependency points.",
 			"thinking, tools, cwd, timeoutSec, maxTurns, parallelLimit, and onFailure are orchestration controls, not decoration.",
 			`Agents: ${formatAgentList(discoverAgents(process.cwd(), "user").agents, 5).text}.`,
 		].join(" "),
 		parameters: SubagentParams,
 		promptGuidelines: [
+			"Use subagent whenever one or more focused delegated tasks would materially improve the work; stay in the main thread when delegation would add unnecessary overhead.",
 			"Use subagent to delegate independent, parallelizable work to a fresh context window; set parallelLimit to 2-4 when concurrency is useful.",
+			"When delegation is beneficial and independent work remains, set background:true, continue independent main-thread work, then use subagent_status or subagent_wait instead of idling.",
 			"Prefer a scout/planner → focused worker → reviewer workflow instead of one broad worker call.",
 			"Use subagent chain with {previous} for dependent phases; set onFailure to continue only when later phases can recover from partial evidence.",
 			"Use keepSession when a task may need follow-up; resume a max-turn or partial run with its returned sessionId and a narrower task.",
@@ -652,29 +734,35 @@ export default function (pi: ExtensionAPI) {
 				}
 			}
 
-			const makeDetails = (results: SubagentRunResult[], mode: "single" | "parallel" | "chain", live?: LiveRun[]) => ({
-				mode,
+			const background = params.background === true;
+			const backgroundController = background ? new AbortController() : undefined;
+			const executionSignal = backgroundController?.signal ?? parentSignal;
+			const dashboardOnUpdate = background ? undefined : onUpdate;
+			const mode: RunKind = hasSingle ? "single" : hasChain ? "chain" : "parallel";
+
+			const makeDetails = (results: SubagentRunResult[], resultMode: RunKind, live?: LiveRun[]) => ({
+				mode: resultMode,
 				results,
 				live,
 			});
 
 			// Throttled streaming updates — stream a live per-subagent dashboard.
 			let lastUpdate = 0;
-			const emitDashboard = (mode: "single" | "parallel" | "chain", force = false) => {
-				if (!onUpdate) return;
+			const emitDashboard = (resultMode: RunKind, force = false) => {
+				if (!dashboardOnUpdate) return;
 				const now = Date.now();
 				if (!force && now - lastUpdate < UPDATE_THROTTLE_MS) return;
 				lastUpdate = now;
 				const live = [...liveRuns.values()].filter((r) => r.groupId === groupId);
-				onUpdate({
+				dashboardOnUpdate({
 					content: [{ type: "text", text: liveDashboardText(live) }],
-					details: makeDetails([], mode, live),
+					details: makeDetails([], resultMode, live),
 				});
 			};
 
 			const runOne = async (
 				item: TaskItemType,
-				mode: "single" | "parallel" | "chain",
+				resultMode: RunKind,
 				step?: number,
 				previousOutput?: string,
 			): Promise<SubagentRunResult> => {
@@ -697,13 +785,13 @@ export default function (pi: ExtensionAPI) {
 						startedAt: new Date().toISOString(),
 						durationMs: 0,
 					};
-					recordFinishedRun(groupId, mode, result, step);
-					emitDashboard(mode, true);
+					recordFinishedRun(groupId, resultMode, result, step);
+					emitDashboard(resultMode, true);
 					return result;
 				}
 
 				const spec = resolved.task;
-				const live = startLiveRun(groupId, mode, spec, step);
+				const live = startLiveRun(groupId, resultMode, spec, step);
 
 				const result = await runSubagent(spec, {
 					defaultCwd: ctx.cwd,
@@ -720,122 +808,160 @@ export default function (pi: ExtensionAPI) {
 						}
 					},
 					sessionCache,
-					signal: parentSignal,
+					signal: executionSignal,
 					onEvent: (event) => {
 						applyRunnerEvent(live, event);
-						emitDashboard(mode);
+						emitDashboard(resultMode);
 					},
 				});
 
 				finalizeLiveRun(live, result);
-				persistRun(groupId, mode, result, step, live);
-				emitDashboard(mode, true);
+				persistRun(groupId, resultMode, result, step, live);
+				emitDashboard(resultMode, true);
 				return result;
 			};
 
-			// ---- Single mode ----
-			if (hasSingle) {
-				const result = await runOne(params as TaskItemType, "single");
-				if (isFailedResult(result)) {
-					return {
-						content: [{ type: "text", text: `Subagent failed (${result.name}): ${resultOutput(result)}` }],
-						details: makeDetails([result], "single"),
-						isError: true,
-					};
-				}
-				return {
-					content: [{ type: "text", text: resultOutput(result) }],
-					details: makeDetails([result], "single"),
-				};
-			}
-
-			// ---- Chain mode ----
-			if (params.chain && params.chain.length > 0) {
-				const results: SubagentRunResult[] = [];
-				const continueOnFailure = params.onFailure === "continue";
-				let previousOutput = "";
-				for (let i = 0; i < params.chain.length; i++) {
-					const stepItem = params.chain[i];
-					const result = await runOne(stepItem, "chain", i + 1, previousOutput);
-					results.push(result);
-					if (isFailedResult(result) && !continueOnFailure) {
-						return {
-							content: [
-								{
-									type: "text",
-									text: `Chain stopped at step ${i + 1} (${result.name}): ${resultOutput(result)}`,
-								},
-							],
-							details: makeDetails(results, "chain"),
-							isError: true,
-						};
-					}
-					if (isFailedResult(result)) {
-						previousOutput = `Step ${i + 1} (${result.name}) failed. Treat this as partial evidence and continue only if the next step can recover:\n\n${resultOutput(result)}`;
-					} else {
-						previousOutput = getFinalOutput(result.messages) || previousOutput;
-					}
-				}
-				const last = results[results.length - 1]!;
-				const failedSteps = results.filter((result) => isFailedResult(result)).length;
-				const prefix = failedSteps > 0
-					? `Chain completed with ${failedSteps} failed step${failedSteps === 1 ? "" : "s"}; later steps were allowed to continue.\n\n`
-					: "";
-				return {
-					content: [{ type: "text", text: `${prefix}${resultOutput(last)}` }],
-					details: makeDetails(results, "chain"),
-					isError: isFailedResult(last),
-				};
-			}
-
-			// ---- Parallel mode ----
 			const tasks = params.tasks ?? [];
 			if (tasks.length > MAX_PARALLEL_TASKS) {
 				return {
-					content: [
-						{
-							type: "text",
-							text: `Too many parallel tasks (${tasks.length}). Max is ${MAX_PARALLEL_TASKS}.`,
-						},
-					],
+					content: [{ type: "text", text: `Too many parallel tasks (${tasks.length}). Max is ${MAX_PARALLEL_TASKS}.` }],
 					details: {},
 					isError: true,
 				};
 			}
 
-			const concurrency = Math.max(1, Math.min(params.parallelLimit ?? DEFAULT_CONCURRENCY, MAX_PARALLEL_TASKS));
-			const results: SubagentRunResult[] = new Array(tasks.length);
-			let nextIndex = 0;
-
-			const worker = async () => {
-				while (true) {
-					// Do not claim queued work after a parent cancellation. Active runs
-					// still receive the signal through runSubagent and stop promptly.
-					if (parentSignal.aborted) return;
-					const current = nextIndex++;
-					if (current >= tasks.length) return;
-					const result = await runOne(tasks[current], "parallel");
-					results[current] = result;
+			const runGroup = async (): Promise<GroupExecutionResult> => {
+				// ---- Single mode ----
+				if (hasSingle) {
+					const result = await runOne(params as TaskItemType, "single");
+					return {
+						mode: "single",
+						results: [result],
+						text: isFailedResult(result)
+							? `Subagent failed (${result.name}): ${resultOutput(result)}`
+							: resultOutput(result),
+						isError: isFailedResult(result),
+					};
 				}
-			};
-			await Promise.all(new Array(concurrency).fill(null).map(() => worker()));
 
-			const done = results.filter((r) => r !== undefined).length;
-			const failed = results.filter((r) => r && isFailedResult(r)).length;
-			const summary = tasks.map((t: TaskItemType, i: number) => {
-				const r = results[i];
-				if (!r) return `- ${t.agent ?? "task"} ${i + 1}: (missing)`;
-				const icon = isFailedResult(r) ? "✗" : "✓";
-				return `- ${icon} ${r.name} (${r.model}): ${truncateBytes(resultOutput(r), 2000)}`;
-			});
+				// ---- Chain mode ----
+				if (hasChain) {
+					const results: SubagentRunResult[] = [];
+					const continueOnFailure = params.onFailure === "continue";
+					let previousOutput = "";
+					for (let i = 0; i < params.chain!.length; i++) {
+						const stepItem = params.chain![i];
+						const result = await runOne(stepItem, "chain", i + 1, previousOutput);
+						results.push(result);
+						if (isFailedResult(result) && !continueOnFailure) {
+							return {
+								mode: "chain",
+								results,
+								text: `Chain stopped at step ${i + 1} (${result.name}): ${resultOutput(result)}`,
+								isError: true,
+							};
+						}
+						if (isFailedResult(result)) {
+							previousOutput = `Step ${i + 1} (${result.name}) failed. Treat this as partial evidence and continue only if the next step can recover:\n\n${resultOutput(result)}`;
+						} else {
+							previousOutput = getFinalOutput(result.messages) || previousOutput;
+						}
+					}
+					const last = results[results.length - 1]!;
+					const failedSteps = results.filter((result) => isFailedResult(result)).length;
+					const prefix = failedSteps > 0
+						? `Chain completed with ${failedSteps} failed step${failedSteps === 1 ? "" : "s"}; later steps were allowed to continue.\n\n`
+						: "";
+					return {
+						mode: "chain",
+						results,
+						text: `${prefix}${resultOutput(last)}`,
+						isError: isFailedResult(last),
+					};
+				}
+
+				// ---- Parallel mode ----
+				const concurrency = Math.max(1, Math.min(params.parallelLimit ?? DEFAULT_CONCURRENCY, MAX_PARALLEL_TASKS));
+				const results: SubagentRunResult[] = new Array(tasks.length);
+				let nextIndex = 0;
+
+				const worker = async () => {
+					while (true) {
+						// Do not claim queued work after cancellation. Active runs still
+						// receive the execution signal through runSubagent.
+						if (executionSignal.aborted) return;
+						const current = nextIndex++;
+						if (current >= tasks.length) return;
+						const result = await runOne(tasks[current], "parallel");
+						results[current] = result;
+					}
+				};
+				await Promise.all(new Array(concurrency).fill(null).map(() => worker()));
+
+				const done = results.filter((r) => r !== undefined).length;
+				const failed = results.filter((r) => r && isFailedResult(r)).length;
+				const summary = tasks.map((t: TaskItemType, i: number) => {
+					const r = results[i];
+					if (!r) return `- ${t.agent ?? "task"} ${i + 1}: (missing)`;
+					const icon = isFailedResult(r) ? "✗" : "✓";
+					return `- ${icon} ${r.name} (${r.model}): ${truncateBytes(resultOutput(r), 2000)}`;
+				});
+				return {
+					mode: "parallel",
+					results: results.filter((r): r is SubagentRunResult => Boolean(r)),
+					text: `Parallel: ${done - failed}/${done} succeeded.\n\n${summary.join("\n\n")}`,
+					isError: failed > 0 || done !== tasks.length,
+				};
+			};
+
+			if (!background) {
+				const groupResult = await runGroup();
+				return {
+					content: [{ type: "text", text: groupResult.text }],
+					details: makeDetails(groupResult.results, groupResult.mode),
+					isError: groupResult.isError,
+				};
+			}
+
+			const backgroundGroup: BackgroundGroup = {
+				groupId,
+				mode,
+				status: "running",
+				startedAt: new Date().toISOString(),
+				controller: backgroundController!,
+				promise: Promise.resolve({ mode, results: [], text: "", isError: false }),
+			};
+			backgroundGroups.set(groupId, backgroundGroup);
+			backgroundGroup.promise = Promise.resolve()
+				.then(() => runGroup())
+				.then((groupResult) => {
+					backgroundGroup.result = groupResult;
+					backgroundGroup.status = groupResult.isError ? "error" : "ok";
+					backgroundGroup.completedAt = new Date().toISOString();
+					return groupResult;
+				})
+				.catch((error: unknown) => {
+					const message = error instanceof Error ? error.message : String(error);
+					const groupResult: GroupExecutionResult = {
+						mode,
+						results: [],
+						text: `Background ${mode} group failed unexpectedly: ${message}`,
+						isError: true,
+					};
+					backgroundGroup.result = groupResult;
+					backgroundGroup.status = "error";
+					backgroundGroup.completedAt = new Date().toISOString();
+					return groupResult;
+				});
+			void backgroundGroup.promise;
+
+			const count = hasSingle ? 1 : hasChain ? params.chain!.length : tasks.length;
 			return {
-				content: [
-					{
-						type: "text",
-						text: `Parallel: ${done - failed}/${done} succeeded.\n\n${summary.join("\n\n")}`,
-					},
-				],
-				details: makeDetails(results.filter((r): r is SubagentRunResult => Boolean(r)), "parallel"),
+				content: [{
+					type: "text",
+					text: `Started background ${mode} group ${groupId} with ${count} subagent run${count === 1 ? "" : "s"}. Continue independent work; use subagent_status with groupId ${groupId} to monitor it and subagent_wait when its results are needed.`,
+				}],
+				details: { mode, groupId, background: true, results: [] },
 			};
 		},
 
@@ -847,6 +973,7 @@ export default function (pi: ExtensionAPI) {
 			let text =
 				theme.fg("toolTitle", theme.bold("subagent ")) +
 				theme.fg("accent", `[${scope}]`);
+			if (args.background) text += `\n${theme.fg("warning", "background — returns immediately")}`;
 			if (args.chain) {
 				text += `\n${theme.fg("accent", `chain (${args.chain.length} steps)`)}`;
 				for (let i = 0; i < Math.min(args.chain.length, 3); i++) {
@@ -880,6 +1007,89 @@ export default function (pi: ExtensionAPI) {
 			}
 			return renderRunResults(details.results, details.mode ?? "single", expanded, theme);
 		},
+	});
+
+	type GroupWaitOutcome =
+		| { kind: "done"; result: GroupExecutionResult }
+		| { kind: "timeout" }
+		| { kind: "aborted" };
+
+	const waitForGroup = (group: BackgroundGroup, timeoutSec: number | undefined, signal: AbortSignal | undefined): Promise<GroupWaitOutcome> => {
+		if (group.result && group.status !== "running") return Promise.resolve({ kind: "done", result: group.result });
+		return new Promise((resolve) => {
+			let settled = false;
+			let timer: ReturnType<typeof setTimeout> | undefined;
+			let onAbort: () => void;
+			const finish = (outcome: GroupWaitOutcome) => {
+				if (settled) return;
+				settled = true;
+				if (timer) clearTimeout(timer);
+				signal?.removeEventListener("abort", onAbort);
+				resolve(outcome);
+			};
+			onAbort = () => finish({ kind: "aborted" });
+			group.promise.then((result) => finish({ kind: "done", result }));
+			if (timeoutSec !== undefined) timer = setTimeout(() => finish({ kind: "timeout" }), timeoutSec * 1000);
+			if (signal?.aborted) onAbort();
+			else signal?.addEventListener("abort", onAbort, { once: true });
+		});
+	};
+
+	pi.registerTool({
+		name: "subagent_status",
+		label: "Subagent status",
+		description: "Inspect running or completed background subagent groups. Pass a groupId to inspect one group.",
+		parameters: BackgroundStatusParams,
+		async execute(_toolCallId, params) {
+			return {
+				content: [{ type: "text", text: formatBackgroundStatus(params.groupId) }],
+				details: { groupId: params.groupId },
+			};
+		},
+	});
+
+	pi.registerTool({
+		name: "subagent_wait",
+		label: "Wait for subagents",
+		description: "Wait for a background subagent group to finish and return its collected results. A timeout only stops waiting; it does not cancel the group.",
+		parameters: BackgroundWaitParams,
+		async execute(_toolCallId, params, signal) {
+			const group = backgroundGroups.get(params.groupId);
+			if (!group) {
+				return {
+					content: [{ type: "text", text: `No background subagent group found for ${params.groupId}.` }],
+					details: { groupId: params.groupId, status: "missing" as const } as BackgroundWaitDetails,
+					isError: true,
+				};
+			}
+
+			const outcome = await waitForGroup(group, params.timeoutSec, signal);
+			if (outcome.kind === "timeout") {
+				return {
+					content: [{ type: "text", text: `Background group ${params.groupId} is still running after ${params.timeoutSec}s.\n\n${formatBackgroundStatus(params.groupId)}` }],
+					details: { groupId: params.groupId, status: "running" as const },
+				};
+			}
+			if (outcome.kind === "aborted") {
+				return {
+					content: [{ type: "text", text: `Stopped waiting for background group ${params.groupId}; the group continues running.` }],
+					details: { groupId: params.groupId, status: "running" as const },
+					isError: true,
+				};
+			}
+
+			return {
+				content: [{ type: "text", text: `Background group ${params.groupId} completed.\n\n${truncateBytes(outcome.result.text, PARENT_OUTPUT_CAP)}` }],
+				details: { groupId: params.groupId, status: "completed" as const, mode: outcome.result.mode, results: outcome.result.results },
+				isError: outcome.result.isError,
+			};
+		},
+	});
+
+	pi.on("session_shutdown", () => {
+		for (const group of backgroundGroups.values()) {
+			if (group.status === "running") group.controller.abort();
+		}
 	});
 
 	// -----------------------------------------------------------------------

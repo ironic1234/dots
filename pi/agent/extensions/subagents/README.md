@@ -38,6 +38,16 @@ The `subagent` tool is available to the main agent with three modes:
 | `onFailure`  | `stop`/`continue` | Chain policy; default `stop`, use `continue` only for recoverable best-effort pipelines |
 | `keepSession`| bool   | Return a `sessionId` to continue this context window later |
 | `sessionId`  | string | Continue an existing context window (from a prior `keepSession`) |
+| `background` | bool   | Return immediately while the group runs; use `subagent_status` and `subagent_wait` to monitor and collect results |
+
+### Background execution
+
+Set `background: true` on a single, parallel, or chain request to return immediately while the group continues in-process. The result includes a group id. Continue independent work in the main session, then use:
+
+- `subagent_status` — inspect active or completed groups;
+- `subagent_wait` — wait for one group and collect its final output (a timeout does not cancel it).
+
+Background groups are canceled when the session shuts down. The default remains synchronous when `background` is omitted.
 
 ### Multi-turn sessions
 
@@ -52,7 +62,7 @@ Subagents are stateless by default. To make one remember across calls:
 
 - `timeoutSec`: aborts the subagent after N seconds (honored even mid-stream).
 - `maxTurns`: bounds tool loops per invocation. At the boundary the runner allows one explicit finalization turn; if the model still requests tools, the result includes the partial transcript and remains resumable when `keepSession` was enabled.
-- Parent abort (Ctrl+C / goal-mode interrupt) propagates to running subagents.
+- Parent abort (Ctrl+C / goal-mode interrupt) propagates to synchronous subagent calls; background groups continue until completion or session shutdown.
 - Prefer a larger budget for implementation/review work than for scouting. Do not set an artificially low budget just to make a task look bounded.
 
 ## Agent files
