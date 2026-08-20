@@ -2,10 +2,7 @@ local dap_plugins = {
 	"https://github.com/nvim-neotest/nvim-nio",
 	"https://github.com/rcarriga/nvim-dap-ui",
 	"https://github.com/mfussenegger/nvim-dap",
-	{
-		src = "https://github.com/ronakpjain/cortex.nvim",
-		name = "cortex.nvim",
-	},
+	"https://github.com/ronakpjain/cortex.nvim",
 }
 
 vim.pack.add(dap_plugins, { confirm = false, load = true })
@@ -132,9 +129,16 @@ end
 local function bottom_winbar()
 	local labels = {}
 	for index, item in ipairs(bottom_tabs.items) do
-		labels[#labels + 1] = index == bottom_tabs.index and ("[ " .. item.label .. " ]") or ("  " .. item.label .. "  ")
+		labels[#labels + 1] = index == bottom_tabs.index and ("[ " .. item.label .. " ]")
+			or ("  " .. item.label .. "  ")
 	end
-	return table.concat(labels, "   ") .. "    <Tab>/<S-Tab>  <leader>bn/bN"
+	local text = table.concat(labels, "   ")
+	local winid = bottom_window()
+	local width = winid and vim.api.nvim_win_get_width(winid) or 80
+	if vim.fn.strdisplaywidth(text) > width then
+		text = vim.fn.strcharpart(text, 0, math.max(1, width - 1)) .. "…"
+	end
+	return text
 end
 
 local function map_bottom_buffer(bufnr)
@@ -181,6 +185,9 @@ function bottom_tabs.select(index)
 	local winid = bottom_window()
 	if winid and vim.api.nvim_buf_is_valid(bufnr) then
 		vim.api.nvim_win_set_buf(winid, bufnr)
+		-- Re-render after the buffer is in the real window so responsive Cortex
+		-- columns use the actual bottom-pane width, not the setup fallback.
+		bottom_tabs.render()
 		vim.api.nvim_win_set_option(winid, "winbar", bottom_winbar())
 	end
 end
@@ -250,7 +257,11 @@ vim.api.nvim_create_autocmd("FileType", {
 				vim.api.nvim_set_current_win(winid)
 				local line = tonumber(position.line)
 				if line and line > 0 then
-					pcall(vim.api.nvim_win_set_cursor, winid, { line, math.max(0, (tonumber(position.column) or 1) - 1) })
+					pcall(
+						vim.api.nvim_win_set_cursor,
+						winid,
+						{ line, math.max(0, (tonumber(position.column) or 1) - 1) }
+					)
 				end
 			end
 		end, { buffer = args.buf, nowait = true, silent = true })
