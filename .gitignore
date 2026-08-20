@@ -10,3 +10,4 @@ pi/agent/extensions/robinhood-mcp/node_modules/
 pi/agent/extensions/robinhood-mcp/.env*
 __pycache__/
 *.pyc
+node_modules/
