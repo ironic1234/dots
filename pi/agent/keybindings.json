@@ -1,5 +1,6 @@
 {
   "app.model.cycleForward": "ctrl+enter",
   "app.model.cycleBackward": "shift+ctrl+enter",
-  "app.thinking.cycle": "ctrl+n"
+  "app.thinking.cycle": "ctrl+n",
+  "app.message.dequeue": "ctrl+shift+u"
 }
