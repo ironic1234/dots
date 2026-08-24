@@ -1,10 +1,7 @@
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { OAuthClientInformationMixed, OAuthClientMetadata, OAuthTokens } from "@modelcontextprotocol/sdk/shared/auth.js";
 import type { OAuthClientProvider, OAuthDiscoveryState } from "@modelcontextprotocol/sdk/client/auth.js";
-import { UnauthorizedError } from "@modelcontextprotocol/sdk/client/auth.js";
 import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
@@ -15,6 +12,9 @@ const MCP_URL = process.env.ROBINHOOD_MCP_URL ?? "https://agent.robinhood.com/mc
 const DATA_DIR = path.join(os.homedir(), ".pi", "agent", "extensions", "robinhood-mcp", ".state");
 const STATE_FILE = path.join(DATA_DIR, "oauth.json");
 const REDIRECT_URI = process.env.ROBINHOOD_MCP_REDIRECT_URI ?? "http://127.0.0.1:3334/callback";
+
+type McpClient = import("@modelcontextprotocol/sdk/client/index.js", { with: { "resolution-mode": "import" } }).Client;
+type McpTransport = import("@modelcontextprotocol/sdk/client/streamableHttp.js", { with: { "resolution-mode": "import" } }).StreamableHTTPClientTransport;
 
 type Stored = {
   clientInformation?: OAuthClientInformationMixed;
@@ -36,6 +36,10 @@ function openUrl(url: URL) {
   const cmd = process.platform === "darwin" ? "open" : process.platform === "win32" ? "cmd" : "xdg-open";
   const args = process.platform === "win32" ? ["/c", "start", "", url.toString()] : [url.toString()];
   execFile(cmd, args, () => {});
+}
+
+function isUnauthorizedError(error: unknown): boolean {
+  return error instanceof Error && (error.name === "UnauthorizedError" || error.constructor.name === "UnauthorizedError");
 }
 
 class FileOAuthProvider implements OAuthClientProvider {
@@ -72,21 +76,30 @@ type CatalogTool = {
 };
 
 export default function (pi: ExtensionAPI) {
-  let client: Client | undefined;
+  let client: McpClient | undefined;
+  let catalogLoad: Promise<void> | undefined;
 
   pi.on("before_agent_start", (event) => ({
     systemPrompt: `${event.systemPrompt}\n\n${ROBINHOOD_CAPABILITY_PROMPT}`,
   }));
-  let transport: StreamableHTTPClientTransport | undefined;
+  let transport: McpTransport | undefined;
   let toolsRegistered = false;
   const catalog = new Map<string, CatalogTool>();
 
   async function connect() {
     if (client) return client;
+
+    // The MCP SDK is only needed when a Robinhood capability is used. Keeping
+    // it out of the startup module graph avoids ~50ms of cold-start work.
+    const [{ Client: McpClient }, { StreamableHTTPClientTransport: McpTransport }] = await Promise.all([
+      import("@modelcontextprotocol/sdk/client/index.js"),
+      import("@modelcontextprotocol/sdk/client/streamableHttp.js"),
+    ]);
     const authProvider = new FileOAuthProvider();
-    transport = new StreamableHTTPClientTransport(new URL(MCP_URL), { authProvider });
-    const c = new Client({ name: "pi-coding-agent", version: "1.0.0" });
-    await c.connect(transport);
+    const nextTransport = new McpTransport(new URL(MCP_URL), { authProvider });
+    transport = nextTransport;
+    const c = new McpClient({ name: "pi-coding-agent", version: "1.0.0" });
+    await c.connect(nextTransport);
     client = c;
     return c;
   }
@@ -106,10 +119,20 @@ export default function (pi: ExtensionAPI) {
     executionMode: "sequential",
     async execute(_id, params, _signal, _onUpdate, ctx) {
       if (!toolsRegistered) {
-        return {
-          content: [{ type: "text", text: "Robinhood tools are not available yet. Authenticate Robinhood MCP, then reload the session." }],
-          details: { matches: [], added: [] },
-        };
+        catalogLoad ??= registerMcpTools(ctx).finally(() => {
+          catalogLoad = undefined;
+        });
+        try {
+          await catalogLoad;
+        } catch (error) {
+          const message = isUnauthorizedError(error)
+            ? "Robinhood MCP needs authentication. Complete the browser login, then run /robinhood-auth with the redirected URL or code."
+            : `Robinhood MCP unavailable: ${error instanceof Error ? error.message : String(error)}`;
+          return {
+            content: [{ type: "text", text: message }],
+            details: { matches: [], added: [], error: message },
+          };
+        }
       }
 
       const terms = params.query.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
@@ -172,21 +195,27 @@ export default function (pi: ExtensionAPI) {
   pi.registerCommand("robinhood-auth", {
     description: "Finish Robinhood MCP OAuth with the redirected URL or code",
     handler: async (args, ctx) => {
+      if (!transport) {
+        try {
+          await connect();
+        } catch (error) {
+          if (!isUnauthorizedError(error)) {
+            ctx.ui.notify(`Robinhood MCP failed: ${error instanceof Error ? error.message : String(error)}`, "error");
+            return;
+          }
+        }
+      }
+
       const code = args.includes("code=") ? new URL(args).searchParams.get("code") : args.trim();
-      if (!code || !transport) { ctx.ui.notify("Run /reload first, authorize in browser, then pass the redirected URL/code.", "error"); return; }
+      if (!code || !transport) {
+        ctx.ui.notify("Authorize in the browser, then pass the redirected URL or code.", "error");
+        return;
+      }
       await transport.finishAuth(code);
       client = undefined;
       if (!toolsRegistered) await registerMcpTools(ctx);
       ctx.ui.notify("Robinhood MCP authenticated.", "info");
     },
-  });
-
-  pi.on("session_start", async (_event, ctx) => {
-    try { if (!toolsRegistered) await registerMcpTools(ctx); }
-    catch (e: any) {
-      if (e instanceof UnauthorizedError || e?.name === "UnauthorizedError") ctx.ui.notify("Robinhood MCP needs auth. Browser opened; after login run /robinhood-auth <redirected URL or code> then /reload.", "warning");
-      else ctx.ui.notify(`Robinhood MCP failed: ${e?.message ?? e}`, "error");
-    }
   });
 
   pi.on("session_shutdown", async () => { try { await transport?.close(); } catch {} client = undefined; transport = undefined; });
