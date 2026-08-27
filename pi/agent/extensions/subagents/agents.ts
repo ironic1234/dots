@@ -9,9 +9,9 @@
  * description: Fast codebase recon
  * model: openai-codex/gpt-5.6-luna
  * tools: read, grep, find, ls, bash
- * thinking: low
- * timeoutSec: 120
- * maxTurns: 8
+ * thinking: medium
+ * timeoutSec: 180
+ * maxTurns: 18
  * ---
  *
  * System prompt for the agent goes here.
@@ -83,9 +83,13 @@ function loadAgentsFromDir(dir: string, source: "user" | "project"): AgentConfig
 		if (typeof name !== "string" || typeof description !== "string") continue;
 
 		const toolsRaw = frontmatter.tools;
-		const tools = typeof toolsRaw === "string"
-			? toolsRaw.split(",").map((t) => t.trim()).filter(Boolean)
-			: undefined;
+		const tools =
+			typeof toolsRaw === "string"
+				? toolsRaw
+						.split(",")
+						.map((t) => t.trim())
+						.filter(Boolean)
+				: undefined;
 
 		agents.push({
 			name,

@@ -21,6 +21,7 @@ import {
 	activityPlainText,
 	type RunActivity,
 } from "../extensions/subagents/ui.ts";
+import { applyAgentPolicy, ENFORCED_AGENT_PROFILES } from "../extensions/subagents/policy.ts";
 
 const fakeModel = {
 	id: "fake-model",
@@ -35,6 +36,15 @@ const fakeModel = {
 	contextWindow: 128000,
 	maxTokens: 4096,
 };
+
+function getTestModel(id: string) {
+	if (id === "fake/fake-model" || id === "fake-model") return fakeModel;
+	if (id === "openai-codex/gpt-5.6-sol" || id === "openai-codex/gpt-5.6-luna") {
+		const modelId = id.split("/")[1]!;
+		return { ...fakeModel, id: modelId, name: modelId, provider: "openai-codex", reasoning: true };
+	}
+	return undefined;
+}
 
 type StubConfig = {
 	toolTurns?: number;
@@ -74,7 +84,12 @@ function stubProvider(config: StubConfig) {
 		withResult.result = () => finalMsg;
 		return withResult;
 	};
-	return { provider: { streamSimple } as never, get invocations() { return invocations; } };
+	return {
+		provider: { streamSimple } as never,
+		get invocations() {
+			return invocations;
+		},
+	};
 }
 
 function spec(overrides: Partial<SubagentTaskSpec> = {}): SubagentTaskSpec {
@@ -99,6 +114,154 @@ function opts(
 		...extra,
 	} as Parameters<typeof runSubagent>[1];
 }
+
+describe("named subagent policies", () => {
+	test("hard-locks bundled profile controls over request overrides", () => {
+		const controls = applyAgentPolicy("planner", {
+			model: "fake/other-model",
+			tools: ["write"],
+			thinking: "max",
+			timeoutSec: 1,
+			maxTurns: 1,
+		});
+
+		expect(controls).toEqual({
+			model: "openai-codex/gpt-5.6-sol",
+			thinking: "medium",
+			tools: ["read", "grep", "find", "ls"],
+			timeoutSec: 240,
+			maxTurns: 18,
+		});
+	});
+
+	test("matches the complete requested contract for every bundled profile", () => {
+		expect(ENFORCED_AGENT_PROFILES).toEqual({
+			planner: {
+				model: "openai-codex/gpt-5.6-sol",
+				thinking: "medium",
+				tools: ["read", "grep", "find", "ls"],
+				timeoutSec: 240,
+				maxTurns: 18,
+			},
+			reviewer: {
+				model: "openai-codex/gpt-5.6-sol",
+				thinking: "low",
+				tools: ["read", "grep", "find", "ls", "bash"],
+				timeoutSec: 240,
+				maxTurns: 22,
+			},
+			scout: {
+				model: "openai-codex/gpt-5.6-luna",
+				thinking: "medium",
+				tools: ["read", "grep", "find", "ls", "bash"],
+				timeoutSec: 180,
+				maxTurns: 18,
+			},
+			worker: {
+				model: "openai-codex/gpt-5.6-luna",
+				thinking: "xhigh",
+				tools: ["read", "bash", "edit", "write", "grep", "find", "ls"],
+				timeoutSec: 600,
+				maxTurns: 40,
+			},
+		});
+	});
+
+	test("keeps inline/custom controls configurable", () => {
+		const controls = { model: "fake/model", tools: ["read"], thinking: "low", timeoutSec: 9, maxTurns: 2 };
+		expect(applyAgentPolicy("custom", controls)).toBe(controls);
+		expect(Object.keys(ENFORCED_AGENT_PROFILES)).toEqual(["planner", "reviewer", "scout", "worker"]);
+	});
+
+	test("installs the locked controls in the actual runner", async () => {
+		const stub = stubProvider({ finalText: "DONE" });
+		const sessionCache = new Map();
+		const result = await runSubagent(
+			spec({
+				name: "scout",
+				model: "fake/fake-model",
+				tools: ["write"],
+				thinking: "max",
+				keepSession: true,
+			}),
+			opts(stub, { getModel: getTestModel, sessionCache }),
+		);
+
+		expect(result.exitCode).toBe(0);
+		const agent = sessionCache.get(result.sessionId!);
+		expect(agent?.state.model.provider).toBe("openai-codex");
+		expect(agent?.state.model.id).toBe("gpt-5.6-luna");
+		expect(agent?.state.thinkingLevel).toBe("medium");
+		expect(agent?.state.tools.map((tool) => tool.name)).toEqual(["read", "bash", "grep", "find", "ls"]);
+
+		const resumed = await runSubagent(
+			spec({
+				name: "scout",
+				model: "fake/fake-model",
+				tools: ["write"],
+				thinking: "max",
+				sessionId: result.sessionId,
+			}),
+			opts(stub, { getModel: getTestModel, sessionCache }),
+		);
+		expect(resumed.exitCode).toBe(0);
+		expect(stub.invocations).toBe(2);
+	});
+
+	test("does not allow incompatible sessions to bypass the profile", async () => {
+		const stub = stubProvider({ finalText: "DONE" });
+		const sessionCache = new Map();
+		const first = await runSubagent(
+			spec({ name: "custom", tools: ["read"], thinking: "low", keepSession: true }),
+			opts(stub, { getModel: getTestModel, sessionCache }),
+		);
+		const invocationsBeforeReuse = stub.invocations;
+		const reused = await runSubagent(
+			spec({
+				name: "planner",
+				model: "fake/fake-model",
+				tools: ["write"],
+				thinking: "max",
+				sessionId: first.sessionId,
+			}),
+			opts(stub, { getModel: getTestModel, sessionCache }),
+		);
+
+		expect(reused.exitCode).toBe(2);
+		expect(reused.errorMessage).toContain("Incompatible subagent session");
+		expect(stub.invocations).toBe(invocationsBeforeReuse);
+	});
+
+	test("uses the locked worker budget instead of a caller override", async () => {
+		const stub = stubProvider({ toolTurns: 2, finalText: "DONE" });
+		const result = await runSubagent(
+			spec({ name: "worker", model: "fake/fake-model", maxTurns: 1 }),
+			opts(stub, { getModel: getTestModel }),
+		);
+
+		expect(result.exitCode).toBe(0);
+		expect(result.maxTurnsKilled).toBe(false);
+		expect(stub.invocations).toBe(3);
+	});
+
+	test("does not fall back to a different provider for a locked model", async () => {
+		const stub = stubProvider({ finalText: "MUST NOT RUN" });
+		const otherProviderModel = { ...fakeModel, id: "gpt-5.6-sol", provider: "other-provider" };
+		const result = await runSubagent(
+			spec({ name: "planner", model: "fake/fake-model" }),
+			opts(stub, {
+				getModel: (id: string) => {
+					if (id === "gpt-5.6-sol") return otherProviderModel;
+					return id === "fake/fake-model" || id === "fake-model" ? fakeModel : undefined;
+				},
+			}),
+		);
+
+		expect(result.exitCode).toBe(2);
+		expect(result.errorMessage).toBe("Model not available: openai-codex/gpt-5.6-sol");
+		expect(stub.invocations).toBe(0);
+	});
+});
 
 describe("subagent runner cancellation", () => {
 	test("does not start a provider request when the parent is already aborted", async () => {
@@ -151,7 +314,9 @@ describe("subagent runner live events", () => {
 		const events: RunnerEvent[] = [];
 		const result = await runSubagent(spec(), opts(stub, { onEvent: (e) => events.push(e) }));
 		expect(result.exitCode).toBe(0);
-		expect(events.some((e) => e.type === "message" && getFinalOutput([(e as any).message]) === "RESULT")).toBe(true);
+		expect(events.some((e) => e.type === "message" && getFinalOutput([(e as any).message]) === "RESULT")).toBe(
+			true,
+		);
 		expect(events.filter((e) => e.type === "message").length).toBe(1);
 	});
 
@@ -165,8 +330,7 @@ describe("subagent runner live events", () => {
 		expect(tool!.name).toBe("bash");
 
 		const toolResult = events.find((e) => e.type === "toolResult") as
-			| Extract<RunnerEvent, { type: "toolResult" }>
-			| undefined;
+			Extract<RunnerEvent, { type: "toolResult" }> | undefined;
 		expect(toolResult).toBeDefined();
 		expect(toolResult!.name).toBe("bash");
 		expect(toolResult!.resultPreview).toContain("hi");
@@ -177,7 +341,8 @@ describe("subagent runner live events", () => {
 		const stub = stubProvider({ finalText: "THINK-ABOUT-THIS" });
 		const events: RunnerEvent[] = [];
 		await runSubagent(spec(), opts(stub, { onEvent: (e) => events.push(e) }));
-		const thinking = events.find((e) => e.type === "thinking") as Extract<RunnerEvent, { type: "thinking" }> | undefined;
+		const thinking = events.find((e) => e.type === "thinking") as
+			Extract<RunnerEvent, { type: "thinking" }> | undefined;
 		expect(thinking).toBeDefined();
 		expect(thinking!.text).toContain("THINK-ABOUT-THIS");
 	});
@@ -233,11 +398,13 @@ describe("subagent ui helpers", () => {
 		expect(formatElapsed(90_000)).toBe("1m30s");
 		expect(truncateBytes("hello", 100)).toBe("hello");
 		expect(truncateBytes("hello world", 5)).toContain("[truncated]");
-		expect(usageLine({ input: 1000, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0.001, contextTokens: 0, turns: 2 })).toContain("2 turns");
+		expect(
+			usageLine({ input: 1000, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0.001, contextTokens: 0, turns: 2 }),
+		).toContain("2 turns");
 	});
 
 	test("activityPlainText renders one-liners without ANSI", () => {
-		const tool: RunActivity = { kind: "tool", at: 1234, toolName: "bash", argsPreview: "{ command: \"ls\" }" };
+		const tool: RunActivity = { kind: "tool", at: 1234, toolName: "bash", argsPreview: '{ command: "ls" }' };
 		expect(activityPlainText(tool)).toContain("bash");
 		const failed: RunActivity = { kind: "toolResult", at: 2000, toolName: "bash", isError: true };
 		expect(activityPlainText(failed)).toContain("✗");

@@ -25,6 +25,7 @@ import {
 	createReadToolDefinition,
 	createWriteToolDefinition,
 } from "@earendil-works/pi-coding-agent";
+import { applyAgentPolicy } from "./policy.ts";
 import { randomUUID } from "node:crypto";
 
 export interface SubagentTaskSpec {
@@ -102,7 +103,24 @@ const DEFAULT_SUBAGENT_SYSTEM_PROMPT = [
 	"If you are nearing the turn budget, stop exploring and summarize the best verified partial result rather than starting another tool loop.",
 ].join("\n");
 
-const TOOL_FACTORIES: Record<(typeof BUILTIN_TOOLS)[number], (cwd: string) => { name: string; label: string; description: string; parameters: unknown; prepareArguments?: (args: unknown) => unknown; executionMode?: unknown; execute: (toolCallId: string, params: unknown, signal: AbortSignal | undefined, onUpdate: unknown, ctx: unknown) => Promise<unknown> }> = {
+const TOOL_FACTORIES: Record<
+	(typeof BUILTIN_TOOLS)[number],
+	(cwd: string) => {
+		name: string;
+		label: string;
+		description: string;
+		parameters: unknown;
+		prepareArguments?: (args: unknown) => unknown;
+		executionMode?: unknown;
+		execute: (
+			toolCallId: string,
+			params: unknown,
+			signal: AbortSignal | undefined,
+			onUpdate: unknown,
+			ctx: unknown,
+		) => Promise<unknown>;
+	}
+> = {
 	read: createReadToolDefinition as never,
 	bash: createBashToolDefinition as never,
 	edit: createEditToolDefinition as never,
@@ -118,7 +136,18 @@ export function emptyUsage(): SubagentUsage {
 
 export function accumulateUsage(target: SubagentUsage, message: AgentMessage): void {
 	if (message.role !== "assistant") return;
-	const usage = (message as { usage?: { input?: number; output?: number; cacheRead?: number; cacheWrite?: number; totalTokens?: number; cost?: { total?: number } } }).usage;
+	const usage = (
+		message as {
+			usage?: {
+				input?: number;
+				output?: number;
+				cacheRead?: number;
+				cacheWrite?: number;
+				totalTokens?: number;
+				cost?: { total?: number };
+			};
+		}
+	).usage;
 	if (!usage) return;
 	target.input += usage.input || 0;
 	target.output += usage.output || 0;
@@ -163,16 +192,9 @@ function toolResultPreview(result: unknown): string {
 }
 
 function resolveModelId(requested: string, getModel: RunOptions["getModel"]): Model<any> | undefined {
-	// spec.model is a concrete "provider/id" (resolved by the caller), but
-	// tolerate bare ids and provider/* patterns defensively.
-	const direct = getModel(requested);
-	if (direct) return direct;
-	if (requested.endsWith("/*")) {
-		const provider = requested.slice(0, -2);
-		return getModel(`${provider}/*`);
-	}
-	if (requested.includes("/")) return getModel(requested.split("/")[1]);
-	return undefined;
+	// Qualified ids must remain provider-qualified. Falling back to a bare id
+	// could silently run a same-named model from a different provider.
+	return getModel(requested);
 }
 
 function buildTools(spec: SubagentTaskSpec, defaultCwd: string, model: Model<any>, thinking?: string): AgentToolLike[] {
@@ -216,6 +238,33 @@ function buildTools(spec: SubagentTaskSpec, defaultCwd: string, model: Model<any
 	return wrapped;
 }
 
+function expectedToolNames(spec: SubagentTaskSpec): string[] {
+	const allowed = spec.tools && spec.tools.length > 0 ? new Set(spec.tools) : undefined;
+	return BUILTIN_TOOLS.filter((name) => !allowed || allowed.has(name));
+}
+
+function sessionMismatch(agent: Agent, spec: SubagentTaskSpec, model: Model<any>): string | undefined {
+	const actualModel = agent.state.model;
+	const expectedModel = `${model.provider}/${model.id}`;
+	const actualModelId = `${actualModel.provider}/${actualModel.id}`;
+	if (actualModelId !== expectedModel) {
+		return `model is ${actualModelId}, expected ${expectedModel}`;
+	}
+
+	const expectedThinking = (spec.thinking as ThinkingLevel) ?? "off";
+	if (agent.state.thinkingLevel !== expectedThinking) {
+		return `thinking is ${agent.state.thinkingLevel}, expected ${expectedThinking}`;
+	}
+
+	const actualTools = agent.state.tools.map((tool) => tool.name);
+	const expectedTools = expectedToolNames(spec);
+	if (actualTools.join("\0") !== expectedTools.join("\0")) {
+		return `tools are [${actualTools.join(", ")}], expected [${expectedTools.join(", ")}]`;
+	}
+
+	return undefined;
+}
+
 // Minimal structural shape accepted by AgentState.tools.
 type AgentToolLike = {
 	name: string;
@@ -228,6 +277,10 @@ type AgentToolLike = {
 };
 
 export async function runSubagent(spec: SubagentTaskSpec, opts: RunOptions): Promise<SubagentRunResult> {
+	// Defense in depth: the extension resolves named profiles before reaching
+	// this runner, but enforce them here too for every direct runner call.
+	spec = { ...spec, ...applyAgentPolicy(spec.name, spec) };
+
 	const startedAt = new Date().toISOString();
 	const startMs = Date.now();
 
@@ -296,6 +349,17 @@ export async function runSubagent(spec: SubagentTaskSpec, opts: RunOptions): Pro
 		return result;
 	}
 
+	if (agent) {
+		const mismatch = sessionMismatch(agent, spec, model);
+		if (mismatch) {
+			result.exitCode = 2;
+			result.stopReason = "error";
+			result.errorMessage = `Incompatible subagent session ${spec.sessionId}: ${mismatch}`;
+			result.durationMs = Date.now() - startMs;
+			return result;
+		}
+	}
+
 	if (!agent) {
 		agent = new Agent({
 			streamFn: (m, context, options) => provider.streamSimple(m, context, options),
@@ -323,9 +387,10 @@ export async function runSubagent(spec: SubagentTaskSpec, opts: RunOptions): Pro
 	// maxTurns and reported usage are per invocation, including when continuing
 	// a cached context window. Historical assistant messages must not count.
 	let turns = 0;
-	const maxTurns = typeof spec.maxTurns === "number" && Number.isFinite(spec.maxTurns) && spec.maxTurns > 0
-		? Math.max(1, Math.floor(spec.maxTurns))
-		: undefined;
+	const maxTurns =
+		typeof spec.maxTurns === "number" && Number.isFinite(spec.maxTurns) && spec.maxTurns > 0
+			? Math.max(1, Math.floor(spec.maxTurns))
+			: undefined;
 	let finalizationRequested = false;
 
 	const hasToolCalls = (message: AgentMessage): boolean =>
@@ -336,7 +401,10 @@ export async function runSubagent(spec: SubagentTaskSpec, opts: RunOptions): Pro
 		result.maxTurnsKilled = true;
 		result.stopReason = "maxTurns";
 		result.errorMessage = `Exceeded maxTurns=${maxTurns}`;
-		opts.onEvent?.({ type: "status", text: `⏰ ${spec.name}: maxTurns=${maxTurns} reached after finalization attempt` });
+		opts.onEvent?.({
+			type: "status",
+			text: `⏰ ${spec.name}: maxTurns=${maxTurns} reached after finalization attempt`,
+		});
 	};
 
 	const abortAgent = (reason: "timeout" | "parent") => {
@@ -364,13 +432,18 @@ export async function runSubagent(spec: SubagentTaskSpec, opts: RunOptions): Pro
 		if (!maxTurns || turns < maxTurns) return false;
 		if (hasToolCalls(message) && !finalizationRequested) {
 			finalizationRequested = true;
-			opts.onEvent?.({ type: "status", text: `⚠️ ${spec.name}: turn budget reached, requesting a concise final answer` });
+			opts.onEvent?.({
+				type: "status",
+				text: `⚠️ ${spec.name}: turn budget reached, requesting a concise final answer`,
+			});
 			agent?.steer({
 				role: "user",
-				content: [{
-					type: "text",
-					text: "Turn budget reached. Do not call any more tools. Give the best concise final answer now, clearly separating verified findings from anything still unverified.",
-				}],
+				content: [
+					{
+						type: "text",
+						text: "Turn budget reached. Do not call any more tools. Give the best concise final answer now, clearly separating verified findings from anything still unverified.",
+					},
+				],
 				timestamp: Date.now(),
 			});
 			return false;

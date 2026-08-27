@@ -53,6 +53,7 @@ import {
 	SubagentsBrowser,
 	type LiveRun,
 } from "./ui.ts";
+import { applyAgentPolicy } from "./policy.ts";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -68,19 +69,6 @@ const UPDATE_THROTTLE_MS = 200;
 const MESSAGE_TEXT_CAP = 4000;
 const MESSAGE_RESULT_CAP = 2000;
 const MAX_STORED_ACTIVITIES = 200;
-const ORCHESTRATION_GUIDE = [
-	"Orchestrator controls (use deliberately):",
-	"1. Decompose large work into focused tasks with an explicit expected output; do not ask one worker to explore, implement, and review everything.",
-	"2. Use `tasks` plus `parallelLimit` (usually 2-4) for independent work. Keep each parallel task self-contained and avoid overlapping file mutations.",
-	"3. Use `chain` for dependencies. Put `{previous}` in the next task so it receives the prior result; use `onFailure: \"continue\"` only for best-effort pipelines, otherwise failures stop the chain.",
-	"4. Use `keepSession: true` when a task may need follow-up. If the result contains `[Session: ...]`, resume with that `sessionId` and a focused continuation task instead of restarting.",
-	"5. Set `maxTurns` and `timeoutSec` per task based on complexity. The runner reserves a finalization turn at the turn boundary, but workers should stop investigating and summarize when the budget is nearly used.",
-	"6. Use `tools` and `cwd` to constrain each worker. Prefer read-only tools for scouts/planners/reviewers and mutation tools only for implementation workers.",
-	"7. Inspect every result's success/failure status. A partial or failed worker is evidence, not completion; route it to a continuation, another worker, or a reviewer.",
-	"8. A reliable default workflow is scout/planner → focused worker → reviewer, with parallel scouts when the questions are independent.",
-	"9. When delegation is beneficial and independent work remains, set background:true so the main thread can continue; monitor with subagent_status and wait with subagent_wait only at dependency or synthesis points.",
-].join("\n");
-
 // ---------------------------------------------------------------------------
 // Types & helpers
 // ---------------------------------------------------------------------------
@@ -96,49 +84,97 @@ const FailurePolicySchema = StringEnum(["stop", "continue"] as const, {
 
 const TaskItem = Type.Object({
 	agent: Type.Optional(Type.String({ description: "Agent definition name (from agents/)" })),
-	task: Type.String({ description: "Self-contained task with an explicit expected output. Use {previous} in chain mode for prior step output." }),
-	model: Type.Optional(Type.String({ description: 'Arbitrary model: "provider/id", "provider/*", or bare id' })),
+	task: Type.String({
+		description:
+			"Self-contained task with an explicit expected output. Use {previous} in chain mode for prior step output.",
+	}),
+	model: Type.Optional(
+		Type.String({
+			description:
+				'Arbitrary model: "provider/id", "provider/*", or bare id; ignored for policy-locked bundled agents',
+		}),
+	),
 	systemPrompt: Type.Optional(Type.String({ description: "Inline system prompt (overrides agent file prompt)" })),
 	tools: Type.Optional(Type.Array(Type.String(), { description: "Tool allowlist for this subagent" })),
 	thinking: Type.Optional(ThinkingLevelSchema),
 	timeoutSec: Type.Optional(Type.Number({ description: "Kill the subagent after this many seconds" })),
-	maxTurns: Type.Optional(Type.Integer({ minimum: 1, description: "Assistant-turn budget; the runner reserves one finalization turn at the boundary" })),
+	maxTurns: Type.Optional(
+		Type.Integer({
+			minimum: 1,
+			description: "Assistant-turn budget; the runner reserves one finalization turn at the boundary",
+		}),
+	),
 	cwd: Type.Optional(Type.String({ description: "Working directory for the subagent" })),
-	sessionId: Type.Optional(Type.String({ description: "Continue an existing subagent context window (from keepSession)" })),
+	sessionId: Type.Optional(
+		Type.String({ description: "Continue an existing subagent context window (from keepSession)" }),
+	),
 	keepSession: Type.Optional(Type.Boolean({ description: "Save the session so it can be continued later" })),
 });
 
 const AgentScopeSchema = StringEnum(["user", "project", "both"] as const, {
-	description: 'Agent scope. "user" (default) loads <agentDir>/agents. "project" loads .pi/agents. "both" loads both.',
+	description:
+		'Agent scope. "user" (default) loads <agentDir>/agents. "project" loads .pi/agents. "both" loads both.',
 });
 
 const SubagentParams = Type.Object({
 	agent: Type.Optional(Type.String({ description: "Agent definition name (single mode)" })),
 	task: Type.Optional(Type.String({ description: "Task text (single mode)" })),
-	model: Type.Optional(Type.String({ description: 'Arbitrary model: "provider/id", "provider/*", or bare id (single mode)' })),
-	systemPrompt: Type.Optional(Type.String({ description: "Inline system prompt (single mode, overrides agent prompt)" })),
+	model: Type.Optional(
+		Type.String({
+			description:
+				'Arbitrary model: "provider/id", "provider/*", or bare id (single mode); ignored for policy-locked bundled agents',
+		}),
+	),
+	systemPrompt: Type.Optional(
+		Type.String({ description: "Inline system prompt (single mode, overrides agent prompt)" }),
+	),
 	tools: Type.Optional(Type.Array(Type.String(), { description: "Tool allowlist (single mode)" })),
 	thinking: Type.Optional(ThinkingLevelSchema),
 	timeoutSec: Type.Optional(Type.Number({ description: "Kill after this many seconds (single mode)" })),
-	maxTurns: Type.Optional(Type.Integer({ minimum: 1, description: "Assistant-turn budget; the runner reserves one finalization turn at the boundary" })),
+	maxTurns: Type.Optional(
+		Type.Integer({
+			minimum: 1,
+			description: "Assistant-turn budget; the runner reserves one finalization turn at the boundary",
+		}),
+	),
 	cwd: Type.Optional(Type.String({ description: "Working directory for the subagent" })),
 	sessionId: Type.Optional(Type.String({ description: "Continue an existing subagent context window" })),
 	keepSession: Type.Optional(Type.Boolean({ description: "Save the session so it can be continued later" })),
-	background: Type.Optional(Type.Boolean({ description: "Return immediately and let this group run in the background; use subagent_status/subagent_wait for progress and results" })),
+	background: Type.Optional(
+		Type.Boolean({
+			description:
+				"Return immediately and let this group run in the background; use subagent_status/subagent_wait for progress and results",
+		}),
+	),
 	tasks: Type.Optional(Type.Array(TaskItem, { description: "Parallel mode: array of tasks to run concurrently" })),
-	chain: Type.Optional(Type.Array(TaskItem, { description: "Chain mode: sequential dependent steps, {previous} = prior step output" })),
+	chain: Type.Optional(
+		Type.Array(TaskItem, { description: "Chain mode: sequential dependent steps, {previous} = prior step output" }),
+	),
 	onFailure: Type.Optional(FailurePolicySchema),
 	agentScope: Type.Optional(AgentScopeSchema),
-	parallelLimit: Type.Optional(Type.Integer({ minimum: 1, maximum: MAX_PARALLEL_TASKS, description: "Max concurrent subagents (default 1 = sequential; use 2-4 for independent tasks)" })),
+	parallelLimit: Type.Optional(
+		Type.Integer({
+			minimum: 1,
+			maximum: MAX_PARALLEL_TASKS,
+			description: "Max concurrent subagents (default 1 = sequential; use 2-4 for independent tasks)",
+		}),
+	),
 });
 
 const BackgroundStatusParams = Type.Object({
-	groupId: Type.Optional(Type.String({ description: "Background group id returned by subagent with background:true" })),
+	groupId: Type.Optional(
+		Type.String({ description: "Background group id returned by subagent with background:true" }),
+	),
 });
 
 const BackgroundWaitParams = Type.Object({
 	groupId: Type.String({ description: "Background group id returned by subagent with background:true" }),
-	timeoutSec: Type.Optional(Type.Number({ minimum: 0, description: "Stop waiting after this many seconds; the background group keeps running" })),
+	timeoutSec: Type.Optional(
+		Type.Number({
+			minimum: 0,
+			description: "Stop waiting after this many seconds; the background group keeps running",
+		}),
+	),
 });
 
 type TaskItemType = Static<typeof TaskItem>;
@@ -222,7 +258,11 @@ function matchesPattern(model: { provider: string; id: string; name: string }, p
 // Exported for testing.
 export function resolveModel(
 	requested: string | undefined,
-	ctx: Pick<ExtensionContext, "model"> & { modelRegistry: { getAvailable(): { provider: string; id: string; name: string; contextWindow: number; maxTokens: number }[] } },
+	ctx: Pick<ExtensionContext, "model"> & {
+		modelRegistry: {
+			getAvailable(): { provider: string; id: string; name: string; contextWindow: number; maxTokens: number }[];
+		};
+	},
 ): { ok: true; model: ResolvedModel } | { ok: false; error: string; suggestions: string[] } {
 	const available = ctx.modelRegistry.getAvailable();
 
@@ -300,9 +340,17 @@ function buildTask(
 	}
 
 	const systemPrompt = item.systemPrompt ?? agent?.systemPrompt ?? "";
-	const modelRequested = item.model ?? agent?.model;
+	// Named bundled profiles are policy-locked. Inline and custom agents keep
+	// the existing request-over-agent precedence.
+	const controls = applyAgentPolicy(item.agent, {
+		model: item.model ?? agent?.model,
+		tools: item.tools ?? agent?.tools,
+		thinking: item.thinking ?? agent?.thinking,
+		timeoutSec: item.timeoutSec ?? agent?.timeoutSec,
+		maxTurns: item.maxTurns ?? agent?.maxTurns,
+	});
 
-	const resolved = resolveModel(modelRequested, ctx);
+	const resolved = resolveModel(controls.model, ctx);
 	if (!resolved.ok) {
 		return { ok: false, error: resolved.error, suggestions: resolved.suggestions };
 	}
@@ -319,10 +367,10 @@ function buildTask(
 			task: taskText,
 			systemPrompt,
 			model: resolved.model.modelId,
-			tools: item.tools ?? agent?.tools,
-			thinking: item.thinking ?? agent?.thinking,
-			timeoutSec: item.timeoutSec ?? agent?.timeoutSec,
-			maxTurns: item.maxTurns ?? agent?.maxTurns,
+			tools: controls.tools,
+			thinking: controls.thinking,
+			timeoutSec: controls.timeoutSec,
+			maxTurns: controls.maxTurns,
 			cwd: item.cwd,
 			sessionId: item.sessionId,
 			keepSession: item.keepSession,
@@ -339,9 +387,7 @@ function resultOutput(r: SubagentRunResult): string {
 	let output: string;
 	if (isFailedResult(r)) {
 		const diagnostic = r.errorMessage || r.stderr || "Subagent stopped before producing a final answer.";
-		output = finalOutput
-			? `${diagnostic}\n\nPartial output before stop:\n${finalOutput}`
-			: diagnostic;
+		output = finalOutput ? `${diagnostic}\n\nPartial output before stop:\n${finalOutput}` : diagnostic;
 	} else {
 		output = finalOutput || "(no output)";
 	}
@@ -360,13 +406,17 @@ function truncateMessagesForStorage(messages: AgentMessage[]): AgentMessage[] {
 		if (m.role === "assistant") {
 			return {
 				...m,
-				content: m.content.map((part) => (part.type === "text" ? { ...part, text: truncateBytes(part.text, MESSAGE_TEXT_CAP) } : part)),
+				content: m.content.map((part) =>
+					part.type === "text" ? { ...part, text: truncateBytes(part.text, MESSAGE_TEXT_CAP) } : part,
+				),
 			} as AgentMessage;
 		}
 		if (m.role === "toolResult") {
 			return {
 				...m,
-				content: m.content.map((part) => (part.type === "text" ? { ...part, text: truncateBytes(part.text, MESSAGE_RESULT_CAP) } : part)),
+				content: m.content.map((part) =>
+					part.type === "text" ? { ...part, text: truncateBytes(part.text, MESSAGE_RESULT_CAP) } : part,
+				),
 			} as AgentMessage;
 		}
 		return m;
@@ -374,7 +424,13 @@ function truncateMessagesForStorage(messages: AgentMessage[]): AgentMessage[] {
 }
 
 /** Full per-run detail record persisted alongside the summary entry. */
-function toDetailRecord(groupId: string, kind: RunRecord["kind"], r: SubagentRunResult, step: number | undefined, live: LiveRun): LiveRun {
+function toDetailRecord(
+	groupId: string,
+	kind: RunRecord["kind"],
+	r: SubagentRunResult,
+	step: number | undefined,
+	live: LiveRun,
+): LiveRun {
 	const startedAt = new Date(r.startedAt).getTime();
 	return {
 		runId: live.runId,
@@ -405,7 +461,13 @@ function toDetailRecord(groupId: string, kind: RunRecord["kind"], r: SubagentRun
 	};
 }
 
-function toRunRecord(groupId: string, kind: RunRecord["kind"], r: SubagentRunResult, step: number | undefined, runId: string): RunRecord {
+function toRunRecord(
+	groupId: string,
+	kind: RunRecord["kind"],
+	r: SubagentRunResult,
+	step: number | undefined,
+	runId: string,
+): RunRecord {
 	return {
 		runId,
 		groupId,
@@ -477,7 +539,12 @@ export default function (pi: ExtensionAPI) {
 				}
 				break;
 			case "tool":
-				live.activities.push({ kind: "tool", at, toolName: event.name, argsPreview: preview(JSON.stringify(event.args), 90) });
+				live.activities.push({
+					kind: "tool",
+					at,
+					toolName: event.name,
+					argsPreview: preview(JSON.stringify(event.args), 90),
+				});
 				break;
 			case "toolResult":
 				live.activities.push({
@@ -510,7 +577,13 @@ export default function (pi: ExtensionAPI) {
 		live.currentThinking = undefined;
 	};
 
-	const persistRun = (groupId: string, kind: LiveRun["kind"], r: SubagentRunResult, step: number | undefined, live: LiveRun) => {
+	const persistRun = (
+		groupId: string,
+		kind: LiveRun["kind"],
+		r: SubagentRunResult,
+		step: number | undefined,
+		live: LiveRun,
+	) => {
 		pi.appendEntry(RUN_ENTRY_TYPE, toRunRecord(groupId, kind, r, step, live.runId));
 		pi.appendEntry(RUN_DETAIL_ENTRY_TYPE, toDetailRecord(groupId, kind, r, step, live));
 	};
@@ -561,9 +634,7 @@ export default function (pi: ExtensionAPI) {
 	};
 
 	const runsForGroup = (groupId: string): LiveRun[] =>
-		[...liveRuns.values()]
-			.filter((run) => run.groupId === groupId)
-			.sort((a, b) => a.startTime - b.startTime);
+		[...liveRuns.values()].filter((run) => run.groupId === groupId).sort((a, b) => a.startTime - b.startTime);
 
 	const formatBackgroundStatus = (requestedGroupId?: string): string => {
 		const groups = [...backgroundGroups.values()]
@@ -578,16 +649,16 @@ export default function (pi: ExtensionAPI) {
 		const lines: string[] = [];
 		for (const group of groups) {
 			const runs = runsForGroup(group.groupId);
-			const elapsed = (group.completedAt ? Date.parse(group.completedAt) : Date.now()) - Date.parse(group.startedAt);
+			const elapsed =
+				(group.completedAt ? Date.parse(group.completedAt) : Date.now()) - Date.parse(group.startedAt);
 			const icon = statusIcon(group.status === "running" ? "running" : group.status === "ok" ? "ok" : "error");
 			lines.push(`${icon} ${group.groupId} · ${group.mode} · ${group.status} · ${formatElapsed(elapsed)}`);
 			if (runs.length === 0) {
 				lines.push("  (no subagent runs have started yet)");
 			} else {
 				for (const run of runs) {
-					const detail = run.status === "running"
-						? "running"
-						: run.errorMessage || run.stopReason || "finished";
+					const detail =
+						run.status === "running" ? "running" : run.errorMessage || run.stopReason || "finished";
 					lines.push(`  ${statusIcon(run.status)} ${run.name} · ${run.model} · ${detail}`);
 				}
 			}
@@ -598,66 +669,13 @@ export default function (pi: ExtensionAPI) {
 		return truncateBytes(lines.join("\n"), PARENT_OUTPUT_CAP);
 	};
 
-
-	// ---- Model-facing capability guide: injected before every agent start ----
-	// (before_agent_start chains with other extensions' handlers, e.g. goal-mode.)
-	let agentGuideCache: string | null = null;
-	const namedAgents = () => {
-		if (agentGuideCache === null) {
-			const agents = discoverAgents(process.cwd(), "user").agents;
-			agentGuideCache = agents.length > 0 ? agents.map((a) => a.name).join(", ") : "(none)";
-		}
-		return agentGuideCache;
-	};
-
-	// Cheapest configured models first — the catalog an orchestrator picks workers from.
-	let workerCatalogCache: string | null = null;
-	const workerCatalog = (ctx: ExtensionContext) => {
-		if (workerCatalogCache !== null) return workerCatalogCache;
-		const models = ctx.modelRegistry
-			.getAvailable()
-			.filter((m) => ctx.modelRegistry.hasConfiguredAuth(m));
-		if (models.length === 0) return "";
-		const sorted = [...models].sort((a, b) => {
-			const pa = (a.cost.input ?? 0) + (a.cost.output ?? 0);
-			const pb = (b.cost.input ?? 0) + (b.cost.output ?? 0);
-			return pa - pb;
-		});
-		workerCatalogCache = sorted
-			.slice(0, 6)
-			.map((m) => `${m.provider}/${m.id} (${Math.round(m.contextWindow / 1024)}k ctx)`)
-			.join(", ");
-		return workerCatalogCache;
-	};
-
-	const capabilityPrompt = (ctx: ExtensionContext) => {
-		const lines = [
-			"## Subagent extension",
-			"You have the `subagent` tool: delegate work to a subagent with its OWN isolated context window and any registered model. Use it for independent research/analysis/edits that would otherwise pollute your context.",
-			`Modes: single ({task, model?, agent?|systemPrompt?, tools?, thinking?, timeoutSec?, maxTurns?, cwd?}) · parallel ({tasks:[...]}, sequential unless parallelLimit>1) · chain ({chain:[...]}, {previous} = prior step output). Add background:true to return immediately; use subagent_status/subagent_wait to monitor and collect results.`,
-			`model: "provider/id" or bare id (validated before running). Named agents: ${namedAgents()} (or use inline systemPrompt).`,
-			"Multi-turn memory: keepSession:true returns `[Session: <uuid>]` in the result; pass that uuid as sessionId in a later call to continue the SAME context window.",
-			"Budgets: timeoutSec aborts on wall-clock expiry; maxTurns requests a concise finalization turn before stopping; parent aborts propagate.",
-		];
-		lines.push(ORCHESTRATION_GUIDE);
-		const catalog = workerCatalog(ctx);
-		if (catalog) lines.push(`Cheapest configured worker models: ${catalog}.`);
-		return lines.join("\n");
-	};
-
-	// Capability guide injected before every agent start (registered once at load;
-	// chains with other extensions' handlers, e.g. goal-mode).
-	pi.on("before_agent_start", async (event, ctx) => ({
-		systemPrompt: `${event.systemPrompt}\n\n${capabilityPrompt(ctx)}`,
-	}));
-
 	pi.registerTool({
 		name: "subagent",
 		label: "Subagent",
 		description: [
 			"Delegate tasks to subagents with isolated context windows and explicit orchestration controls. Use background:true when the main thread should continue while they run.",
 			"Single: {task}. Parallel: {tasks:[...], parallelLimit}. Chain: {chain:[...], onFailure, {previous}}.",
-			'Model is arbitrary: "provider/id", "provider/*", or bare id; validated before running.',
+			'Model is arbitrary: "provider/id", "provider/*", or bare id; validated before running. Bundled named-agent profiles are policy-locked.',
 			"Use focused tasks with an explicit expected output; do not make one worker own discovery, implementation, and review.",
 			"Use parallel for independent tasks, chain for dependencies, and keepSession/sessionId to continue partial work without restarting.",
 			"maxTurns reserves a finalization turn; if a run still fails, its result includes partial output and a session id when keepSession was enabled.",
@@ -673,9 +691,8 @@ export default function (pi: ExtensionAPI) {
 			"Prefer a scout/planner → focused worker → reviewer workflow instead of one broad worker call.",
 			"Use subagent chain with {previous} for dependent phases; set onFailure to continue only when later phases can recover from partial evidence.",
 			"Use keepSession when a task may need follow-up; resume a max-turn or partial run with its returned sessionId and a narrower task.",
-			"Prefer task-specific systemPrompt and tools allowlists so subagents stay focused and finish within their turn budget.",
+			"Prefer task-specific systemPrompt and tools allowlists so subagents stay focused and finish within their turn budget. For planner, reviewer, scout, and worker, model/tools/thinking/budget overrides are ignored.",
 		],
-
 
 		async execute(_toolCallId, params, signal, onUpdate, ctx) {
 			const parentSignal = signal ?? new AbortController().signal;
@@ -704,7 +721,12 @@ export default function (pi: ExtensionAPI) {
 
 			if (parentSignal.aborted) {
 				return {
-					content: [{ type: "text", text: "Subagent request canceled before start because the parent request was aborted." }],
+					content: [
+						{
+							type: "text",
+							text: "Subagent request canceled before start because the parent request was aborted.",
+						},
+					],
 					details: {},
 					isError: true,
 				};
@@ -712,12 +734,11 @@ export default function (pi: ExtensionAPI) {
 
 			// Project-agent confirmation (headless-safe).
 			if ((agentScope === "project" || agentScope === "both") && ctx.hasUI) {
-				const items: Array<{ agent?: string }> =
-					params.tasks ?? params.chain ?? (hasSingle ? [params] : []);
-				const requestedNames = new Set(
-					items.map((t) => t.agent).filter((n): n is string => Boolean(n)),
+				const items: Array<{ agent?: string }> = params.tasks ?? params.chain ?? (hasSingle ? [params] : []);
+				const requestedNames = new Set(items.map((t) => t.agent).filter((n): n is string => Boolean(n)));
+				const projectAgentsRequested = agents.filter(
+					(a) => a.source === "project" && requestedNames.has(a.name),
 				);
-				const projectAgentsRequested = agents.filter((a) => a.source === "project" && requestedNames.has(a.name));
 				if (projectAgentsRequested.length > 0) {
 					const names = projectAgentsRequested.map((a) => a.name).join(", ");
 					const ok = await ctx.ui.confirm(
@@ -824,7 +845,12 @@ export default function (pi: ExtensionAPI) {
 			const tasks = params.tasks ?? [];
 			if (tasks.length > MAX_PARALLEL_TASKS) {
 				return {
-					content: [{ type: "text", text: `Too many parallel tasks (${tasks.length}). Max is ${MAX_PARALLEL_TASKS}.` }],
+					content: [
+						{
+							type: "text",
+							text: `Too many parallel tasks (${tasks.length}). Max is ${MAX_PARALLEL_TASKS}.`,
+						},
+					],
 					details: {},
 					isError: true,
 				};
@@ -869,9 +895,10 @@ export default function (pi: ExtensionAPI) {
 					}
 					const last = results[results.length - 1]!;
 					const failedSteps = results.filter((result) => isFailedResult(result)).length;
-					const prefix = failedSteps > 0
-						? `Chain completed with ${failedSteps} failed step${failedSteps === 1 ? "" : "s"}; later steps were allowed to continue.\n\n`
-						: "";
+					const prefix =
+						failedSteps > 0
+							? `Chain completed with ${failedSteps} failed step${failedSteps === 1 ? "" : "s"}; later steps were allowed to continue.\n\n`
+							: "";
 					return {
 						mode: "chain",
 						results,
@@ -881,7 +908,10 @@ export default function (pi: ExtensionAPI) {
 				}
 
 				// ---- Parallel mode ----
-				const concurrency = Math.max(1, Math.min(params.parallelLimit ?? DEFAULT_CONCURRENCY, MAX_PARALLEL_TASKS));
+				const concurrency = Math.max(
+					1,
+					Math.min(params.parallelLimit ?? DEFAULT_CONCURRENCY, MAX_PARALLEL_TASKS),
+				);
 				const results: SubagentRunResult[] = new Array(tasks.length);
 				let nextIndex = 0;
 
@@ -957,10 +987,12 @@ export default function (pi: ExtensionAPI) {
 
 			const count = hasSingle ? 1 : hasChain ? params.chain!.length : tasks.length;
 			return {
-				content: [{
-					type: "text",
-					text: `Started background ${mode} group ${groupId} with ${count} subagent run${count === 1 ? "" : "s"}. Continue independent work; use subagent_status with groupId ${groupId} to monitor it and subagent_wait when its results are needed.`,
-				}],
+				content: [
+					{
+						type: "text",
+						text: `Started background ${mode} group ${groupId} with ${count} subagent run${count === 1 ? "" : "s"}. Continue independent work; use subagent_status with groupId ${groupId} to monitor it and subagent_wait when its results are needed.`,
+					},
+				],
 				details: { mode, groupId, background: true, results: [] },
 			};
 		},
@@ -970,9 +1002,7 @@ export default function (pi: ExtensionAPI) {
 		// -------------------------------------------------------------------
 		renderCall(args, theme, _context) {
 			const scope = args.agentScope ?? "user";
-			let text =
-				theme.fg("toolTitle", theme.bold("subagent ")) +
-				theme.fg("accent", `[${scope}]`);
+			let text = theme.fg("toolTitle", theme.bold("subagent ")) + theme.fg("accent", `[${scope}]`);
 			if (args.background) text += `\n${theme.fg("warning", "background — returns immediately")}`;
 			if (args.chain) {
 				text += `\n${theme.fg("accent", `chain (${args.chain.length} steps)`)}`;
@@ -994,8 +1024,7 @@ export default function (pi: ExtensionAPI) {
 
 		renderResult(result, { expanded }, theme, _context) {
 			const details = result.details as
-				| { mode?: string; results?: SubagentRunResult[]; live?: LiveRun[] }
-				| undefined;
+				{ mode?: string; results?: SubagentRunResult[]; live?: LiveRun[] } | undefined;
 			// Live streaming dashboard (details carried by onUpdate while running).
 			if (details?.live && details.live.length > 0) {
 				return renderLiveDashboard(details.live, expanded, theme);
@@ -1009,12 +1038,13 @@ export default function (pi: ExtensionAPI) {
 		},
 	});
 
-	type GroupWaitOutcome =
-		| { kind: "done"; result: GroupExecutionResult }
-		| { kind: "timeout" }
-		| { kind: "aborted" };
+	type GroupWaitOutcome = { kind: "done"; result: GroupExecutionResult } | { kind: "timeout" } | { kind: "aborted" };
 
-	const waitForGroup = (group: BackgroundGroup, timeoutSec: number | undefined, signal: AbortSignal | undefined): Promise<GroupWaitOutcome> => {
+	const waitForGroup = (
+		group: BackgroundGroup,
+		timeoutSec: number | undefined,
+		signal: AbortSignal | undefined,
+	): Promise<GroupWaitOutcome> => {
 		if (group.result && group.status !== "running") return Promise.resolve({ kind: "done", result: group.result });
 		return new Promise((resolve) => {
 			let settled = false;
@@ -1051,7 +1081,8 @@ export default function (pi: ExtensionAPI) {
 	pi.registerTool({
 		name: "subagent_wait",
 		label: "Wait for subagents",
-		description: "Wait for a background subagent group to finish and return its collected results. A timeout only stops waiting; it does not cancel the group.",
+		description:
+			"Wait for a background subagent group to finish and return its collected results. A timeout only stops waiting; it does not cancel the group.",
 		parameters: BackgroundWaitParams,
 		async execute(_toolCallId, params, signal) {
 			const group = backgroundGroups.get(params.groupId);
@@ -1066,21 +1097,41 @@ export default function (pi: ExtensionAPI) {
 			const outcome = await waitForGroup(group, params.timeoutSec, signal);
 			if (outcome.kind === "timeout") {
 				return {
-					content: [{ type: "text", text: `Background group ${params.groupId} is still running after ${params.timeoutSec}s.\n\n${formatBackgroundStatus(params.groupId)}` }],
+					content: [
+						{
+							type: "text",
+							text: `Background group ${params.groupId} is still running after ${params.timeoutSec}s.\n\n${formatBackgroundStatus(params.groupId)}`,
+						},
+					],
 					details: { groupId: params.groupId, status: "running" as const },
 				};
 			}
 			if (outcome.kind === "aborted") {
 				return {
-					content: [{ type: "text", text: `Stopped waiting for background group ${params.groupId}; the group continues running.` }],
+					content: [
+						{
+							type: "text",
+							text: `Stopped waiting for background group ${params.groupId}; the group continues running.`,
+						},
+					],
 					details: { groupId: params.groupId, status: "running" as const },
 					isError: true,
 				};
 			}
 
 			return {
-				content: [{ type: "text", text: `Background group ${params.groupId} completed.\n\n${truncateBytes(outcome.result.text, PARENT_OUTPUT_CAP)}` }],
-				details: { groupId: params.groupId, status: "completed" as const, mode: outcome.result.mode, results: outcome.result.results },
+				content: [
+					{
+						type: "text",
+						text: `Background group ${params.groupId} completed.\n\n${truncateBytes(outcome.result.text, PARENT_OUTPUT_CAP)}`,
+					},
+				],
+				details: {
+					groupId: params.groupId,
+					status: "completed" as const,
+					mode: outcome.result.mode,
+					results: outcome.result.results,
+				},
 				isError: outcome.result.isError,
 			};
 		},
@@ -1099,14 +1150,25 @@ export default function (pi: ExtensionAPI) {
 		const filter = (args ?? "").trim();
 		const runs = collectRuns(ctx, filter);
 		if (runs.length === 0) {
-			ctx.ui.notify(filter ? "No subagent runs matched the filter." : "No subagent runs yet in this session.", "info");
+			ctx.ui.notify(
+				filter ? "No subagent runs matched the filter." : "No subagent runs yet in this session.",
+				"info",
+			);
 			return;
 		}
 		const active = runs.filter((r) => r.status === "running").length;
-		ctx.ui.notify(`Subagents: ${runs.length} run${runs.length === 1 ? "" : "s"}${active ? ` (${active} active)` : ""}. Esc to close.`, "info");
+		ctx.ui.notify(
+			`Subagents: ${runs.length} run${runs.length === 1 ? "" : "s"}${active ? ` (${active} active)` : ""}. Esc to close.`,
+			"info",
+		);
 		await ctx.ui.custom<null>(
 			(tui, theme, _kb, done) =>
-				new SubagentsBrowser(theme, tui, () => done(null), () => collectRuns(ctx, filter)),
+				new SubagentsBrowser(
+					theme,
+					tui,
+					() => done(null),
+					() => collectRuns(ctx, filter),
+				),
 			{
 				overlay: true,
 				overlayOptions: { width: "90%", maxHeight: "80%", anchor: "center" },
@@ -1137,7 +1199,9 @@ export default function (pi: ExtensionAPI) {
 		let totalCost = 0;
 		let totalTurns = 0;
 		for (const r of recent) {
-			lines.push(`${statusIcon(r.status)} ${r.kind === "single" ? r.name : `${r.kind}:${r.step ?? ""}:${r.name}`} [${r.model}] ${r.stopReason ?? ""} ${r.durationMs !== undefined ? `${(r.durationMs / 1000).toFixed(1)}s` : "…"}`);
+			lines.push(
+				`${statusIcon(r.status)} ${r.kind === "single" ? r.name : `${r.kind}:${r.step ?? ""}:${r.name}`} [${r.model}] ${r.stopReason ?? ""} ${r.durationMs !== undefined ? `${(r.durationMs / 1000).toFixed(1)}s` : "…"}`,
+			);
 			lines.push(`   ${r.task}`);
 			const usage = usageLine({
 				input: r.usage.input,
@@ -1155,7 +1219,9 @@ export default function (pi: ExtensionAPI) {
 			totalTurns += r.usage.turns;
 		}
 		lines.push("");
-		lines.push(`Total: ${recent.length} run(s), ${totalTurns} turns, ↑${formatTokens(totalInput)} input, $${totalCost.toFixed(4)} cost`);
+		lines.push(
+			`Total: ${recent.length} run(s), ${totalTurns} turns, ↑${formatTokens(totalInput)} input, $${totalCost.toFixed(4)} cost`,
+		);
 		ctx.ui.setWidget("subagents", lines);
 	};
 

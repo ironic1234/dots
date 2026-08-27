@@ -3,7 +3,7 @@ name: scout
 description: Fast codebase recon; returns a compressed context summary
 model: openai-codex/gpt-5.6-luna
 tools: read, grep, find, ls, bash
-thinking: low
+thinking: medium
 timeoutSec: 180
 maxTurns: 18
 ---
@@ -13,6 +13,7 @@ codebase or answer focused factual questions about it, then return a COMPACT
 summary that another agent can act on.
 
 Rules:
+
 - Prefer read/grep/find/ls over bash where possible; batch independent inspection into fewer calls.
 - Do not modify any files. Do not run installs or long-running commands.
 - Make a quick evidence plan, then stop exploring once the architecture and unknowns are clear.

@@ -17,28 +17,39 @@ child processes are spawned:
   the default is still sequential (`parallelLimit: 1`) to keep behavior
   predictable.
 
+## Work modes
+
+The separate `work-mode` extension controls when this tool is available:
+
+- `/mode orchestration` pins the main session to Sol/low and strongly directs it
+  to delegate through subagents.
+- `/mode build` leaves the current model alone and blocks subagent launches.
+
+The subagent extension remains responsible only for subagent execution and
+monitoring; mode enforcement lives in `agent/extensions/work-mode/`.
+
 ## Usage
 
 The `subagent` tool is available to the main agent with three modes:
 
-| Field        | Type   | Description |
-|--------------|--------|-------------|
-| `task`       | string | Task text (single mode) |
-| `tasks`      | array  | Independent tasks, run sequentially by default (parallel mode; `parallelLimit` opt-in) |
-| `chain`      | array  | Ordered tasks; `{previous}` in a task text is replaced with the previous result (chain mode) |
-| `model`      | string | Arbitrary model: `"provider/id"`, `"provider/*"`, or bare id — validated against the model registry before running |
-| `agent`      | string | Agent definition name (from agent files) |
-| `systemPrompt`| string| Inline system prompt (overrides agent prompt) |
-| `tools`      | array  | Tool allowlist (`read`, `bash`, `edit`, `write`, `grep`, `find`, `ls`) |
-| `thinking`   | string | Reasoning level for the subagent model: `off` (default — cheap & fast), `minimal`, `low`, `medium`, `high`, `xhigh`, `max` (model-dependent). Raise it for harder tasks that benefit from reasoning; the level is passed straight through to the provider. |
-| `timeoutSec` | number | Abort the subagent after N seconds |
-| `maxTurns`   | number | Assistant-turn budget; the runner reserves one finalization turn at the boundary |
-| `cwd`        | string | Working directory for the subagent |
-| `parallelLimit` | number | Maximum concurrent tasks in parallel mode (1–8) |
-| `onFailure`  | `stop`/`continue` | Chain policy; default `stop`, use `continue` only for recoverable best-effort pipelines |
-| `keepSession`| bool   | Return a `sessionId` to continue this context window later |
-| `sessionId`  | string | Continue an existing context window (from a prior `keepSession`) |
-| `background` | bool   | Return immediately while the group runs; use `subagent_status` and `subagent_wait` to monitor and collect results |
+| Field           | Type              | Description                                                                                                                                                                                                                                                |
+| --------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `task`          | string            | Task text (single mode)                                                                                                                                                                                                                                    |
+| `tasks`         | array             | Independent tasks, run sequentially by default (parallel mode; `parallelLimit` opt-in)                                                                                                                                                                     |
+| `chain`         | array             | Ordered tasks; `{previous}` in a task text is replaced with the previous result (chain mode)                                                                                                                                                               |
+| `model`         | string            | Arbitrary model: `"provider/id"`, `"provider/*"`, or bare id — validated against the model registry before running                                                                                                                                         |
+| `agent`         | string            | Agent definition name (from agent files)                                                                                                                                                                                                                   |
+| `systemPrompt`  | string            | Inline system prompt (overrides agent prompt)                                                                                                                                                                                                              |
+| `tools`         | array             | Tool allowlist (`read`, `bash`, `edit`, `write`, `grep`, `find`, `ls`)                                                                                                                                                                                     |
+| `thinking`      | string            | Reasoning level for the subagent model: `off` (default — cheap & fast), `minimal`, `low`, `medium`, `high`, `xhigh`, `max` (model-dependent). Raise it for harder tasks that benefit from reasoning; the level is passed straight through to the provider. |
+| `timeoutSec`    | number            | Abort the subagent after N seconds                                                                                                                                                                                                                         |
+| `maxTurns`      | number            | Assistant-turn budget; the runner reserves one finalization turn at the boundary                                                                                                                                                                           |
+| `cwd`           | string            | Working directory for the subagent                                                                                                                                                                                                                         |
+| `parallelLimit` | number            | Maximum concurrent tasks in parallel mode (1–8)                                                                                                                                                                                                            |
+| `onFailure`     | `stop`/`continue` | Chain policy; default `stop`, use `continue` only for recoverable best-effort pipelines                                                                                                                                                                    |
+| `keepSession`   | bool              | Return a `sessionId` to continue this context window later                                                                                                                                                                                                 |
+| `sessionId`     | string            | Continue an existing context window (from a prior `keepSession`)                                                                                                                                                                                           |
+| `background`    | bool              | Return immediately while the group runs; use `subagent_status` and `subagent_wait` to monitor and collect results                                                                                                                                          |
 
 ### Background execution
 
@@ -74,6 +85,20 @@ Frontmatter keys: `name`, `description`, `model`, `tools`, `thinking`,
 `timeoutSec`, `maxTurns`. See the bundled samples (`scout`, `planner`,
 `worker`, `reviewer`) in `agent/agents/`. The reusable orchestration playbook is
 `agent/skills/subagent-orchestration/SKILL.md`.
+
+### Bundled profile policy
+
+The named bundled agents have runtime-enforced controls:
+
+| Agent      | Model                       | Thinking | Tools                                   | Timeout / turns |
+| ---------- | --------------------------- | -------: | --------------------------------------- | --------------: |
+| `planner`  | `openai-codex/gpt-5.6-sol`  | `medium` | read, grep, find, ls                    |       240s / 18 |
+| `reviewer` | `openai-codex/gpt-5.6-sol`  |    `low` | read, grep, find, ls, bash              |       240s / 22 |
+| `scout`    | `openai-codex/gpt-5.6-luna` | `medium` | read, grep, find, ls, bash              |       180s / 18 |
+| `worker`   | `openai-codex/gpt-5.6-luna` |  `xhigh` | read, bash, edit, write, grep, find, ls |       600s / 40 |
+
+Their model, thinking level, tool allowlist, and budgets cannot be overridden
+by request fields. Inline and other custom agents remain configurable.
 
 ## Orchestrator pattern (strong planner + cheap workers)
 
@@ -150,6 +175,6 @@ output with a `Ctrl+O` hint).
 - `index.ts` — tool registration, live-run registry, `/subagents` command,
   TUI renderers.
 - Deterministic tests (stub provider, no network): `bun test
-  /tmp/subagent-tests/runner-inproc.test.ts` (compile `runner.ts` into
+/tmp/subagent-tests/runner-inproc.test.ts` (compile `runner.ts` into
   `/tmp/subagent-tests/dist` first via `tsconfig.subagents.emit.json`, since
   Bun resolves bare specifiers from the test file's directory).
