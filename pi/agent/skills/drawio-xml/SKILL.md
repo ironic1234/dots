@@ -14,8 +14,8 @@ Create and modify draw.io files directly as plain XML. The file itself is the so
 - Use a `.drawio` or `.drawio.xml` file containing an `<mxfile>` document, or a `.drawio.png` file with that XML embedded in PNG metadata.
 - Keep each `<diagram>` child uncompressed. Its child must be an `<mxGraphModel>`, not a base64/deflate string. The verifier extracts embedded XML from `.drawio.png` files before applying the same checks.
 - Keep the standard root cells in every page:
-  - `<mxCell id="0"/>`
-  - `<mxCell id="1" parent="0"/>`
+    - `<mxCell id="0"/>`
+    - `<mxCell id="1" parent="0"/>`
 - Use unique, stable IDs for pages, vertices, edges, and other cells. Preserve existing IDs when editing.
 - Store styles in draw.io’s semicolon-separated `key=value;` syntax, not CSS or JSON.
 - Escape XML text and attribute values. At minimum, encode `&` as `&amp;`, `"` as `&quot;`, `<` as `&lt;`, and `>` as `&gt;` where required. If using HTML labels, write tags such as `<br>` escaped inside the `value` attribute.
@@ -164,18 +164,20 @@ The validator is intentionally conservative: container/swimlane children are all
 5. **Export and inspect a PNG preview.** Use the installed draw.io exporter above, then use `read` on the PNG. Confirm connectors and arrowheads visibly touch their intended boxes/shapes; fix and re-export if they do not.
 6. **Validate XML syntax independently.** Prefer the system parser:
 
-   ```bash
-   xmllint --noout path/to/diagram.drawio
-   ```
+    ```bash
+    xmllint --noout path/to/diagram.drawio
+    ```
 
-   If `xmllint` is unavailable, use another local XML parser rather than assuming the file is valid.
+    If `xmllint` is unavailable, use another local XML parser rather than assuming the file is valid.
+
 7. **Open in draw.io when useful.** On this Mac:
 
-   ```bash
-   open -a "/Applications/draw.io.app" -- path/to/diagram.drawio
-   ```
+    ```bash
+    open -a "/Applications/draw.io.app" -- path/to/diagram.drawio
+    ```
 
-   Use the application for optional interactive confirmation, not as the editing mechanism. Do not overwrite the source with a compressed export.
+    Use the application for optional interactive confirmation, not as the editing mechanism. Do not overwrite the source with a compressed export.
+
 8. **Report the result.** State the file path, pages/cells changed, and validation performed. Mention the PNG preview only if it was actually rendered and inspected.
 
 ## Editing safeguards

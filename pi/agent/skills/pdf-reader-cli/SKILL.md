@@ -17,15 +17,15 @@ The wrapper is a CLI around both engines; it does not require Pi itself to have 
 
 Use an explicit `--engine` whenever the requested output matters. Do not choose an engine solely because one is available.
 
-| User need | Engine | Guidance |
-|---|---|---|
-| Local PDF text, metadata, page count | `mutool` | Preferred default, especially for large manuals. |
-| Render selected local pages to PNG | `mutool` | Use `--render-dir` and `--no-text` when only images are needed. |
-| `https://` PDF | `mcp` | The installed MuPDF build cannot fetch URLs. |
-| Tables or table structure | `mcp` | Use `--tables`; MuPDF output is plain text only. |
-| Markdown, chunks, page-level locators, bounding boxes, or citations | `mcp` | Use `--markdown` and/or `--chunks` as appropriate. |
-| Images, annotations, outline, page labels | `mcp` | These are MCP-only options in this wrapper. |
-| OCR text layer | `mcp` | Use `--ocr-text`; report a warning if no OCR provider is configured. |
+| User need                                                           | Engine   | Guidance                                                             |
+| ------------------------------------------------------------------- | -------- | -------------------------------------------------------------------- |
+| Local PDF text, metadata, page count                                | `mutool` | Preferred default, especially for large manuals.                     |
+| Render selected local pages to PNG                                  | `mutool` | Use `--render-dir` and `--no-text` when only images are needed.      |
+| `https://` PDF                                                      | `mcp`    | The installed MuPDF build cannot fetch URLs.                         |
+| Tables or table structure                                           | `mcp`    | Use `--tables`; MuPDF output is plain text only.                     |
+| Markdown, chunks, page-level locators, bounding boxes, or citations | `mcp`    | Use `--markdown` and/or `--chunks` as appropriate.                   |
+| Images, annotations, outline, page labels                           | `mcp`    | These are MCP-only options in this wrapper.                          |
+| OCR text layer                                                      | `mcp`    | Use `--ocr-text`; report a warning if no OCR provider is configured. |
 
 ### What `--engine auto` actually does
 
@@ -43,19 +43,19 @@ It does **not** inspect rich flags before choosing. A large file requested with 
 
 1. **Classify the request.** Identify whether the source is local or remote and whether the user needs plain text or structured evidence.
 2. **Start small for large documents.** First get metadata/page count without text, then extract only the relevant page range:
-   ```bash
-   bun ~/.pi/agent/skills/pdf-reader-cli/scripts/read-pdf.mjs <file.pdf> --engine mutool --no-text
-   bun ~/.pi/agent/skills/pdf-reader-cli/scripts/read-pdf.mjs <file.pdf> --engine mutool --pages "400-450"
-   ```
+    ```bash
+    bun ~/.pi/agent/skills/pdf-reader-cli/scripts/read-pdf.mjs <file.pdf> --engine mutool --no-text
+    bun ~/.pi/agent/skills/pdf-reader-cli/scripts/read-pdf.mjs <file.pdf> --engine mutool --pages "400-450"
+    ```
 3. **Do not dump an entire large manual into Pi's context.** MuPDF avoids the MCP server's text-size limit, but a full manual can still exceed Pi's tool-output/context budget. Use `--pages` and make multiple targeted calls.
 4. **Use MCP for evidence requests and constrain it to pages whenever possible:**
-   ```bash
-   bun ~/.pi/agent/skills/pdf-reader-cli/scripts/read-pdf.mjs <file.pdf> --engine mcp --pages "14-16" --tables --markdown --chunks
-   ```
+    ```bash
+    bun ~/.pi/agent/skills/pdf-reader-cli/scripts/read-pdf.mjs <file.pdf> --engine mcp --pages "14-16" --tables --markdown --chunks
+    ```
 5. **For scanned/image-only PDFs**, try MCP OCR if configured. Otherwise render the relevant pages with MuPDF and inspect the PNGs:
-   ```bash
-   bun ~/.pi/agent/skills/pdf-reader-cli/scripts/read-pdf.mjs <file.pdf> --engine mutool --no-text --render-dir /tmp/pdf-pages --pages "1-3"
-   ```
+    ```bash
+    bun ~/.pi/agent/skills/pdf-reader-cli/scripts/read-pdf.mjs <file.pdf> --engine mutool --no-text --render-dir /tmp/pdf-pages --pages "1-3"
+    ```
 6. **Group sources by engine.** Run local MuPDF inputs separately from URL/rich MCP inputs instead of relying on one mixed invocation.
 7. **Report the engine, page range, key extracted content, and any warnings/errors.** Do not claim that a table, OCR result, or citation exists when the selected engine did not provide it.
 

@@ -170,14 +170,16 @@ function moveWordForward(lines: string[], cursor: VimCursor): VimCursor {
 	let index = boundaries(line).indexOf(result.col);
 	if (index < 0) index = parts.length;
 	if (index >= parts.length) {
-		if (result.line < lines.length - 1) return { line: result.line + 1, col: firstNonWhitespace(lines[result.line + 1] ?? "") };
+		if (result.line < lines.length - 1)
+			return { line: result.line + 1, col: firstNonWhitespace(lines[result.line + 1] ?? "") };
 		return result;
 	}
 	const word = isWordGrapheme(parts[index]!);
 	while (index < parts.length && !isWhitespace(parts[index]!) && isWordGrapheme(parts[index]!) === word) index++;
 	while (index < parts.length && isWhitespace(parts[index]!)) index++;
 	if (index < parts.length) return { line: result.line, col: boundaries(line)[index]! };
-	if (result.line < lines.length - 1) return { line: result.line + 1, col: firstNonWhitespace(lines[result.line + 1] ?? "") };
+	if (result.line < lines.length - 1)
+		return { line: result.line + 1, col: firstNonWhitespace(lines[result.line + 1] ?? "") };
 	return { line: result.line, col: parts.length ? boundaries(line)[parts.length - 1]! : 0 };
 }
 
@@ -208,7 +210,11 @@ function moveWordEnd(lines: string[], cursor: VimCursor): VimCursor {
 	let parts = graphemes(line);
 	let index = boundaries(line).indexOf(result.col);
 	if (index < 0) index = parts.length;
-	if (index < parts.length && !isWhitespace(parts[index]!) && (index + 1 === parts.length || isWhitespace(parts[index + 1]!))) {
+	if (
+		index < parts.length &&
+		!isWhitespace(parts[index]!) &&
+		(index + 1 === parts.length || isWhitespace(parts[index + 1]!))
+	) {
 		index++;
 	}
 	while (index < parts.length && isWhitespace(parts[index]!)) index++;
@@ -217,7 +223,8 @@ function moveWordEnd(lines: string[], cursor: VimCursor): VimCursor {
 		return { line: result.line, col: parts.length ? boundaries(line)[parts.length - 1]! : 0 };
 	}
 	const word = isWordGrapheme(parts[index]!);
-	while (index + 1 < parts.length && !isWhitespace(parts[index + 1]!) && isWordGrapheme(parts[index + 1]!) === word) index++;
+	while (index + 1 < parts.length && !isWhitespace(parts[index + 1]!) && isWordGrapheme(parts[index + 1]!) === word)
+		index++;
 	return { line: result.line, col: boundaries(line)[index] ?? line.length };
 }
 
@@ -249,7 +256,12 @@ function moveMotion(lines: string[], cursor: VimCursor, motion: VimMotion, count
 		return { line, col: boundaries(lines[line] ?? "")[Math.min(sourceIndex, target.length - 1)] ?? 0 };
 	}
 	for (let index = 0; index < count; index++) {
-		result = motion === "w" ? moveWordForward(lines, result) : motion === "b" ? moveWordBackward(lines, result) : moveWordEnd(lines, result);
+		result =
+			motion === "w"
+				? moveWordForward(lines, result)
+				: motion === "b"
+					? moveWordBackward(lines, result)
+					: moveWordEnd(lines, result);
 	}
 	return result;
 }
@@ -267,7 +279,10 @@ export function getVimSelectionRange(lines: string[], selection: VimSelection): 
 		const last = Math.max(safeAnchor.line, safeActive.line);
 		const start = absoluteOffset(lines, { line: first, col: 0 });
 		const endLine = lines[last] ?? "";
-		return { start, end: absoluteOffset(lines, { line: last, col: endLine.length }) + (last < lines.length - 1 ? 1 : 0) };
+		return {
+			start,
+			end: absoluteOffset(lines, { line: last, col: endLine.length }) + (last < lines.length - 1 ? 1 : 0),
+		};
 	}
 	const anchor = absoluteOffset(lines, safeAnchor);
 	const active = absoluteOffset(lines, safeActive);
@@ -305,10 +320,18 @@ function registerForSelection(lines: string[], selection: VimSelection): VimRegi
 	return { kind: selection.kind, text: getVimSelectionText(lines, selection) };
 }
 
-function selectionToMutation(lines: string[], selection: VimSelection, action: "yank" | "delete" | "change"): VimMutation {
+function selectionToMutation(
+	lines: string[],
+	selection: VimSelection,
+	action: "yank" | "delete" | "change",
+): VimMutation {
 	const register = registerForSelection(lines, selection);
-	if (action === "yank") return { lines: [...lines], cursor: clampNormalCursor(lines, selection.active), mode: "NORMAL", register };
-	const range = selection.kind === "linewise" ? linewiseOperationRange(lines, selection) : getVimSelectionRange(lines, selection);
+	if (action === "yank")
+		return { lines: [...lines], cursor: clampNormalCursor(lines, selection.active), mode: "NORMAL", register };
+	const range =
+		selection.kind === "linewise"
+			? linewiseOperationRange(lines, selection)
+			: getVimSelectionRange(lines, selection);
 	const mutation = deleteRange(lines, range.start, range.end);
 	mutation.register = register;
 	mutation.mode = action === "change" ? "INSERT" : "NORMAL";
@@ -323,7 +346,15 @@ export function applyVimVisualCommand(
 	action: "yank" | "delete" | "change",
 ): VimMutation {
 	const lines = inputLines.length ? [...inputLines] : [""];
-	return selectionToMutation(lines, { ...selection, anchor: clampNormalCursor(lines, selection.anchor), active: clampNormalCursor(lines, inputCursor) }, action);
+	return selectionToMutation(
+		lines,
+		{
+			...selection,
+			anchor: clampNormalCursor(lines, selection.anchor),
+			active: clampNormalCursor(lines, inputCursor),
+		},
+		action,
+	);
 }
 
 function cursorAtOffset(text: string, offset: number): VimCursor {
@@ -393,7 +424,8 @@ export function parseVimCommand(sequence: string): VimParseResult {
 	if (key === "p" || key === "P") return { kind: "paste", after: key === "p" };
 	if (key === "g") return "pending";
 	if (key === "gg") return { kind: "motion", motion: "gg", count };
-	if (/^[hjklwbe0^$G]$/u.test(key)) return { kind: "motion", motion: key as VimMotion, count: key === "G" && !hasOuterCount ? 0 : count };
+	if (/^[hjklwbe0^$G]$/u.test(key))
+		return { kind: "motion", motion: key as VimMotion, count: key === "G" && !hasOuterCount ? 0 : count };
 	if (/^[iaIA]$/u.test(key)) return { kind: "insert-mode", action: key as "i" | "a" | "I" | "A", count };
 	if (key === "o" || key === "O") return { kind: "open-line", action: key, count };
 	if (key === "u") return { kind: "undo", count };
@@ -407,11 +439,12 @@ export function parseVimCommand(sequence: string): VimParseResult {
 		if (local.index > 1 && motion.length === 0) return "pending";
 		if (operator === "d" && /^[dwebe0$G]$/u.test(motion)) {
 			const hasLocalCount = local.index > 1;
-			const effectiveCount = motion === "G"
-				? !hasOuterCount && !hasLocalCount
-					? 0
-					: multiplyCounts(hasOuterCount ? count : 1, hasLocalCount ? local.count : 1)
-				: multiplyCounts(count, local.count);
+			const effectiveCount =
+				motion === "G"
+					? !hasOuterCount && !hasLocalCount
+						? 0
+						: multiplyCounts(hasOuterCount ? count : 1, hasLocalCount ? local.count : 1)
+					: multiplyCounts(count, local.count);
 			return { kind: "delete", motion: motion as VimDeleteMotion, count: effectiveCount };
 		}
 		if (operator === "c" && /^[w$]$/u.test(motion)) {
@@ -473,11 +506,17 @@ export function applyVimCommand(inputLines: string[], inputCursor: VimCursor, co
 		const line = lines[cursor.line] ?? "";
 		const parts = graphemes(line);
 		const at = boundaries(line).indexOf(cursor.col);
-		end = absoluteOffset(lines, { line: cursor.line, col: boundaries(line)[Math.min(parts.length, at + command.count)] ?? line.length });
+		end = absoluteOffset(lines, {
+			line: cursor.line,
+			col: boundaries(line)[Math.min(parts.length, at + command.count)] ?? line.length,
+		});
 	} else if (deleteMotion === "X") {
 		const line = lines[cursor.line] ?? "";
 		const at = boundaries(line).indexOf(cursor.col);
-		start = absoluteOffset(lines, { line: cursor.line, col: boundaries(line)[Math.max(0, at - command.count)] ?? 0 });
+		start = absoluteOffset(lines, {
+			line: cursor.line,
+			col: boundaries(line)[Math.max(0, at - command.count)] ?? 0,
+		});
 	} else if (deleteMotion === "D" || deleteMotion === "C" || deleteMotion === "$") {
 		end = absoluteOffset(lines, { line: cursor.line, col: (lines[cursor.line] ?? "").length });
 		if (deleteMotion === "D" || deleteMotion === "C") end = Math.max(start, end);
@@ -486,12 +525,18 @@ export function applyVimCommand(inputLines: string[], inputCursor: VimCursor, co
 	} else if (deleteMotion === "0") {
 		start = absoluteOffset(lines, { line: cursor.line, col: 0 });
 	} else {
-		const changeWordAsEnd = command.kind === "change" && deleteMotion === "w" && !isWhitespace(graphemes(lines[cursor.line] ?? "")[boundaries(lines[cursor.line] ?? "").indexOf(cursor.col)] ?? "");
+		const changeWordAsEnd =
+			command.kind === "change" &&
+			deleteMotion === "w" &&
+			!isWhitespace(
+				graphemes(lines[cursor.line] ?? "")[boundaries(lines[cursor.line] ?? "").indexOf(cursor.col)] ?? "",
+			);
 		const target = moveMotion(lines, cursor, changeWordAsEnd ? "e" : (deleteMotion as VimMotion), command.count);
 		const targetOffset = absoluteOffset(lines, target);
 		if (targetOffset >= start) {
 			end = targetOffset;
-			if (deleteMotion === "e" || changeWordAsEnd || (deleteMotion === "w" && end === start)) end = absoluteOffset(lines, moveOne(lines, target, 1));
+			if (deleteMotion === "e" || changeWordAsEnd || (deleteMotion === "w" && end === start))
+				end = absoluteOffset(lines, moveOne(lines, target, 1));
 		} else {
 			start = targetOffset;
 		}
@@ -499,15 +544,18 @@ export function applyVimCommand(inputLines: string[], inputCursor: VimCursor, co
 	const rangeStart = Math.min(start, end);
 	const rangeEnd = Math.max(start, end);
 	const linewise = deleteMotion === "d" || deleteMotion === "G";
-	const registerFirstLine = deleteMotion === "G" ? Math.min(cursor.line, gTargetLine(lines, command.count)) : cursor.line;
-	const registerLastLine = deleteMotion === "G"
-		? Math.max(cursor.line, gTargetLine(lines, command.count))
-		: Math.min(lines.length - 1, cursor.line + command.count - 1);
+	const registerFirstLine =
+		deleteMotion === "G" ? Math.min(cursor.line, gTargetLine(lines, command.count)) : cursor.line;
+	const registerLastLine =
+		deleteMotion === "G"
+			? Math.max(cursor.line, gTargetLine(lines, command.count))
+			: Math.min(lines.length - 1, cursor.line + command.count - 1);
 	const registerText = linewise
 		? lines.slice(registerFirstLine, registerLastLine + 1).join("\n")
 		: lines.join("\n").slice(rangeStart, rangeEnd);
 	const mutation = deleteRange(lines, rangeStart, rangeEnd);
-	if (rangeEnd > rangeStart) mutation.register = { text: registerText, kind: linewise ? "linewise" : "characterwise" };
+	if (rangeEnd > rangeStart)
+		mutation.register = { text: registerText, kind: linewise ? "linewise" : "characterwise" };
 	if (command.kind === "change" || deleteMotion === "C") {
 		mutation.mode = "INSERT";
 		mutation.cursor = clampCursor(mutation.lines, cursorAtOffset(mutation.lines.join("\n"), Math.min(start, end)));
@@ -520,7 +568,13 @@ function isEscape(data: string): boolean {
 }
 
 function isDelegatedKey(data: string): boolean {
-	return data.length === 0 || data.charCodeAt(0) < 32 || data.startsWith("\x1b") || data.includes("\r") || data.includes("\n");
+	return (
+		data.length === 0 ||
+		data.charCodeAt(0) < 32 ||
+		data.startsWith("\x1b") ||
+		data.includes("\r") ||
+		data.includes("\n")
+	);
 }
 
 function pastedCursor(lines: string[], endOffset: number, pastedText: string): VimCursor {
@@ -570,12 +624,12 @@ export function routeVimPendingInput(pending: string, data: string): VimPendingR
 }
 
 interface VimVisualLayoutRow {
-		line: number;
-		text: string;
-		startCol: number;
-		endCol: number;
-		hasCursor: boolean;
-		cursorPos?: number;
+	line: number;
+	text: string;
+	startCol: number;
+	endCol: number;
+	hasCursor: boolean;
+	cursorPos?: number;
 }
 
 interface VimWrappedChunk {
@@ -587,10 +641,12 @@ interface VimWrappedChunk {
 // Keep this in step with pi-tui's wordWrapLine without reaching into Editor's
 // private state. The editor's public package currently does not re-export that
 // helper, so this deliberately uses only public width and grapheme primitives.
-const cjkGrapheme = /[\p{Script_Extensions=Han}\p{Script_Extensions=Hiragana}\p{Script_Extensions=Katakana}\p{Script_Extensions=Hangul}\p{Script_Extensions=Bopomofo}]/u;
+const cjkGrapheme =
+	/[\p{Script_Extensions=Han}\p{Script_Extensions=Hiragana}\p{Script_Extensions=Katakana}\p{Script_Extensions=Hangul}\p{Script_Extensions=Bopomofo}]/u;
 
 function wrapVimLine(line: string, maxWidth: number): VimWrappedChunk[] {
-	if (!line || maxWidth <= 0 || visibleWidth(line) <= maxWidth) return [{ text: line, startIndex: 0, endIndex: line.length }];
+	if (!line || maxWidth <= 0 || visibleWidth(line) <= maxWidth)
+		return [{ text: line, startIndex: 0, endIndex: line.length }];
 	const parts = graphemes(line);
 	const starts = boundaries(line);
 	const chunks: VimWrappedChunk[] = [];
@@ -604,7 +660,11 @@ function wrapVimLine(line: string, maxWidth: number): VimWrappedChunk[] {
 		const partWidth = visibleWidth(part);
 		if (currentWidth + partWidth > maxWidth) {
 			if (wrapOpportunity >= 0 && currentWidth - wrapOpportunityWidth + partWidth <= maxWidth) {
-				chunks.push({ text: line.slice(chunkStart, wrapOpportunity), startIndex: chunkStart, endIndex: wrapOpportunity });
+				chunks.push({
+					text: line.slice(chunkStart, wrapOpportunity),
+					startIndex: chunkStart,
+					endIndex: wrapOpportunity,
+				});
 				chunkStart = wrapOpportunity;
 				currentWidth -= wrapOpportunityWidth;
 			} else if (chunkStart < partStart) {
@@ -634,7 +694,12 @@ function wrapVimLine(line: string, maxWidth: number): VimWrappedChunk[] {
 		if (next && isWhitespace(part) && !isWhitespace(next)) {
 			wrapOpportunity = starts[index + 1]!;
 			wrapOpportunityWidth = currentWidth;
-		} else if (next && !isWhitespace(part) && !isWhitespace(next) && (cjkGrapheme.test(part) || cjkGrapheme.test(next))) {
+		} else if (
+			next &&
+			!isWhitespace(part) &&
+			!isWhitespace(next) &&
+			(cjkGrapheme.test(part) || cjkGrapheme.test(next))
+		) {
 			wrapOpportunity = starts[index + 1]!;
 			wrapOpportunityWidth = currentWidth;
 		}
@@ -665,14 +730,18 @@ function vimVisualLayout(lines: string[], layoutWidth: number, cursor: VimCursor
 		for (let index = 0; index < chunks.length; index++) {
 			const chunk = chunks[index]!;
 			const last = index === chunks.length - 1;
-			const hasCursor = line === cursor.line && (last ? cursor.col >= chunk.startIndex : cursor.col >= chunk.startIndex && cursor.col < chunk.endIndex);
+			const hasCursor =
+				line === cursor.line &&
+				(last ? cursor.col >= chunk.startIndex : cursor.col >= chunk.startIndex && cursor.col < chunk.endIndex);
 			result.push({
 				line,
 				text: chunk.text,
 				startCol: chunk.startIndex,
 				endCol: chunk.endIndex,
 				hasCursor,
-				cursorPos: hasCursor ? Math.min(Math.max(0, cursor.col - chunk.startIndex), chunk.text.length) : undefined,
+				cursorPos: hasCursor
+					? Math.min(Math.max(0, cursor.col - chunk.startIndex), chunk.text.length)
+					: undefined,
 			});
 		}
 	}
@@ -680,9 +749,7 @@ function vimVisualLayout(lines: string[], layoutWidth: number, cursor: VimCursor
 }
 
 function hasUnsafeHighlightText(lines: string[]): boolean {
-	return lines.some(
-		(line) => /\[paste #\d+(?: \+\d+ lines| \d+ chars)?\]/u.test(line) || line.includes("\x1b"),
-	);
+	return lines.some((line) => /\[paste #\d+(?: \+\d+ lines| \d+ chars)?\]/u.test(line) || line.includes("\x1b"));
 }
 
 export class VimEditor extends CustomEditor {
@@ -716,9 +783,17 @@ export class VimEditor extends CustomEditor {
 		}
 	}
 
-	getMode(): VimMode { return this.mode; }
-	getSelection(): VimSelection | undefined { return this.selection ? { ...this.selection, anchor: { ...this.selection.anchor }, active: { ...this.selection.active } } : undefined; }
-	getRegister(): VimRegister | undefined { return this.register ? { ...this.register } : undefined; }
+	getMode(): VimMode {
+		return this.mode;
+	}
+	getSelection(): VimSelection | undefined {
+		return this.selection
+			? { ...this.selection, anchor: { ...this.selection.anchor }, active: { ...this.selection.active } }
+			: undefined;
+	}
+	getRegister(): VimRegister | undefined {
+		return this.register ? { ...this.register } : undefined;
+	}
 
 	private clearVisual(): void {
 		this.selection = undefined;
@@ -739,7 +814,10 @@ export class VimEditor extends CustomEditor {
 		const before: VimSnapshot = { text: this.getText(), cursor: this.getCursor() };
 		const result = applyVimVisualCommand(this.getLines(), before.cursor, this.selection, action);
 		if (action !== "yank") {
-			this.undoState = action === "change" ? beginVimInsertTransaction(this.undoState, before) : recordVimMutation(this.undoState, before);
+			this.undoState =
+				action === "change"
+					? beginVimInsertTransaction(this.undoState, before)
+					: recordVimMutation(this.undoState, before);
 			if (result.lines.join("\n") !== before.text) this.setText(result.lines.join("\n"));
 		}
 		if (result.register) this.register = result.register;
@@ -764,7 +842,10 @@ export class VimEditor extends CustomEditor {
 			const text = this.getText();
 			const nextText = text.slice(0, range.start) + this.register.text + text.slice(range.end);
 			const nextLines = nextText.split("\n");
-			result = { lines: nextLines, cursor: pastedCursor(nextLines, range.start + this.register.text.length, this.register.text) };
+			result = {
+				lines: nextLines,
+				cursor: pastedCursor(nextLines, range.start + this.register.text.length, this.register.text),
+			};
 		}
 		this.undoState = recordVimMutation(this.undoState, before);
 		this.setText(result.lines.join("\n"));
@@ -843,9 +924,14 @@ export class VimEditor extends CustomEditor {
 		if (this.mode === "VISUAL" || this.mode === "VISUAL_LINE") {
 			// These are normal-mode prefixes/commands, not visual commands. In
 			// particular, do not leave `r` pending and steal the next visual key.
-			if (!this.pending && (data === "i" || data === "o" || data === "D" || data === "C" || data === "u" || data === "r")) return;
+			if (
+				!this.pending &&
+				(data === "i" || data === "o" || data === "D" || data === "C" || data === "u" || data === "r")
+			)
+				return;
 			if (data === "v" || data === "V") {
-				if ((data === "v" && this.mode === "VISUAL") || (data === "V" && this.mode === "VISUAL_LINE")) this.clearVisual();
+				if ((data === "v" && this.mode === "VISUAL") || (data === "V" && this.mode === "VISUAL_LINE"))
+					this.clearVisual();
 				else this.mode = data === "V" ? "VISUAL_LINE" : "VISUAL";
 				if (this.selection) this.selection.kind = data === "V" ? "linewise" : "characterwise";
 				this.tui.requestRender();
@@ -904,9 +990,11 @@ export class VimEditor extends CustomEditor {
 			const part = rowParts[index]!;
 			const partStart = rowBounds[index]!;
 			const absoluteStart = lineStart + row.startCol + partStart;
-			const selected = selection.kind === "linewise"
-				? row.line >= Math.min(selection.anchor.line, selection.active.line) && row.line <= Math.max(selection.anchor.line, selection.active.line)
-				: absoluteStart < range.end && absoluteStart + part.length > range.start;
+			const selected =
+				selection.kind === "linewise"
+					? row.line >= Math.min(selection.anchor.line, selection.active.line) &&
+						row.line <= Math.max(selection.anchor.line, selection.active.line)
+					: absoluteStart < range.end && absoluteStart + part.length > range.start;
 			const cursor = row.hasCursor && row.cursorPos === partStart;
 			const marker = cursor && this.focused ? CURSOR_MARKER : "";
 			const rendered = cursor ? `\x1b[7m${part}\x1b[0m` : part;
@@ -943,8 +1031,12 @@ export class VimEditor extends CustomEditor {
 		let cursorLineIndex = layout.findIndex((row) => row.hasCursor);
 		if (cursorLineIndex < 0) cursorLineIndex = 0;
 		if (cursorLineIndex < this.visualScrollOffset) this.visualScrollOffset = cursorLineIndex;
-		else if (cursorLineIndex >= this.visualScrollOffset + maxVisibleLines) this.visualScrollOffset = cursorLineIndex - maxVisibleLines + 1;
-		this.visualScrollOffset = Math.max(0, Math.min(this.visualScrollOffset, Math.max(0, layout.length - maxVisibleLines)));
+		else if (cursorLineIndex >= this.visualScrollOffset + maxVisibleLines)
+			this.visualScrollOffset = cursorLineIndex - maxVisibleLines + 1;
+		this.visualScrollOffset = Math.max(
+			0,
+			Math.min(this.visualScrollOffset, Math.max(0, layout.length - maxVisibleLines)),
+		);
 
 		if ((this.mode === "VISUAL" || this.mode === "VISUAL_LINE") && this.selection) {
 			// Paste markers are atomic in Editor, raw ANSI cannot be segmented as
@@ -955,7 +1047,14 @@ export class VimEditor extends CustomEditor {
 			if (!hasUnsafeHighlightText(sourceLines) && layoutMatchesRender) {
 				const range = getVimSelectionRange(sourceLines, this.selection);
 				for (let index = 0; index < visibleRows.length; index++) {
-					lines[index + 1] = this.renderVisualContentRow(visibleRows[index]!, sourceLines, this.selection, range, contentWidth, paddingX);
+					lines[index + 1] = this.renderVisualContentRow(
+						visibleRows[index]!,
+						sourceLines,
+						this.selection,
+						range,
+						contentWidth,
+						paddingX,
+					);
 				}
 			}
 		}
@@ -974,9 +1073,7 @@ export class VimEditor extends CustomEditor {
 		}
 		const border = "─".repeat(Math.max(0, width - visibleWidth(label) - 1));
 		const decorated =
-			this.editorTheme.borderColor("─") +
-			`${color}${label}\x1b[0m` +
-			this.editorTheme.borderColor(border);
+			this.editorTheme.borderColor("─") + `${color}${label}\x1b[0m` + this.editorTheme.borderColor(border);
 		lines[0] = truncateToWidth(decorated, width, "");
 		return lines;
 	}

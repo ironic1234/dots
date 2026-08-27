@@ -1,0 +1,21 @@
+# Personal/session state and credentials
+agent/auth.json
+agent/memories.json
+agent/sessions/
+agent/checkpoints/
+agent/git/
+
+# Generated/dependency files
+**/node_modules/
+**/.state/
+**/bun.lock
+**/package-lock.json
+
+# Binary and non-Prettier source assets
+**/*.png
+**/*.jpg
+**/*.jpeg
+**/*.gif
+**/*.webp
+**/*.bmp
+**/*.py

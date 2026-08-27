@@ -51,12 +51,12 @@ Use `robinhood_get_realized_pnl`. Default span is acceptable if the user asks ge
 
 1. Confirm account and check `agentic_allowed=true` via `robinhood_get_accounts`.
 2. Ensure required order details are known:
-   - symbol
-   - buy/sell
-   - order type (`market`, `limit`, `stop_market`, `stop_limit`)
-   - quantity or dollar amount, exactly one
-   - limit/stop prices if required
-   - time in force and market hours if relevant
+    - symbol
+    - buy/sell
+    - order type (`market`, `limit`, `stop_market`, `stop_limit`)
+    - quantity or dollar amount, exactly one
+    - limit/stop prices if required
+    - time in force and market hours if relevant
 3. If not skipping review, call `robinhood_review_equity_order`.
 4. Present estimated cost/proceeds and alerts clearly.
 5. Ask for explicit confirmation to place.
@@ -66,17 +66,17 @@ Use `robinhood_get_realized_pnl`. Default span is acceptable if the user asks ge
 
 1. Confirm account and verify `agentic_allowed=true` plus `option_level_2` or `option_level_3`.
 2. Resolve contract:
-   - `robinhood_get_option_chains`
-   - `robinhood_get_option_instruments` filtered by expiration, strike, and call/put
-   - `robinhood_get_option_quotes` when quote context is useful
+    - `robinhood_get_option_chains`
+    - `robinhood_get_option_instruments` filtered by expiration, strike, and call/put
+    - `robinhood_get_option_quotes` when quote context is useful
 3. Only single-leg option orders are supported.
 4. Ensure required details are known:
-   - buy/sell
-   - open/close
-   - quantity
-   - order type
-   - limit/stop price if required
-   - time in force and market hours if relevant
+    - buy/sell
+    - open/close
+    - quantity
+    - order type
+    - limit/stop price if required
+    - time in force and market hours if relevant
 5. If not skipping review, call `robinhood_review_option_order`.
 6. Present alerts, fees, collateral, and quote information.
 7. Ask for explicit confirmation to place.

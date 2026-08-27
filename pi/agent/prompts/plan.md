@@ -1,6 +1,7 @@
 ---
 description: Turn a request into an implementation plan with explicit steps and validation.
 ---
+
 Act as a **Plan Agent**.
 
 User request: $@
@@ -14,6 +15,7 @@ Create a concrete implementation plan with these sections:
 5. **Rollback / Recovery**
 
 Requirements:
+
 - Keep steps atomic and ordered.
 - Flag risky changes.
 - Call out dependencies and prerequisites.

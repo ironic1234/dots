@@ -108,7 +108,13 @@ export function truncateBytes(text: string, cap: number): string {
 }
 
 export function isFailedResult(r: SubagentRunResult): boolean {
-	return r.exitCode !== 0 || r.stopReason === "error" || r.stopReason === "aborted" || r.stopReason === "timeout" || r.stopReason === "maxTurns";
+	return (
+		r.exitCode !== 0 ||
+		r.stopReason === "error" ||
+		r.stopReason === "aborted" ||
+		r.stopReason === "timeout" ||
+		r.stopReason === "maxTurns"
+	);
 }
 
 export function runDisplayName(r: { kind: "single" | "parallel" | "chain"; step?: number; name: string }): string {
@@ -222,10 +228,18 @@ function appendSegment(container: Container, seg: TranscriptSegment, mdTheme: Ma
 			break;
 		case "toolCall":
 			container.addChild(new Spacer(1));
-			container.addChild(new Text(theme.fg("toolTitle", `🔧 ${seg.name}`) + (seg.args ? ` ${theme.fg("dim", seg.args)}` : ""), 0, 0));
+			container.addChild(
+				new Text(
+					theme.fg("toolTitle", `🔧 ${seg.name}`) + (seg.args ? ` ${theme.fg("dim", seg.args)}` : ""),
+					0,
+					0,
+				),
+			);
 			break;
 		case "toolResult":
-			container.addChild(new Text(seg.isError ? theme.fg("error", `✗ ${seg.name}`) : theme.fg("success", `✓ ${seg.name}`), 0, 0));
+			container.addChild(
+				new Text(seg.isError ? theme.fg("error", `✗ ${seg.name}`) : theme.fg("success", `✓ ${seg.name}`), 0, 0),
+			);
 			if (seg.text) container.addChild(new Text(theme.fg("toolOutput", truncateBytes(seg.text, 4000)), 1, 0));
 			break;
 	}
@@ -245,11 +259,16 @@ export function renderLiveDashboard(live: LiveRun[], expanded: boolean, theme: T
 	for (const r of live) {
 		container.addChild(new Spacer(1));
 		const icon = statusIcon(r.status);
-		const color: "accent" | "success" | "error" = r.status === "running" ? "accent" : r.status === "ok" ? "success" : "error";
-		const elapsed = formatElapsed((r.status === "running" ? Date.now() : r.endTime ?? Date.now()) - r.startTime);
+		const color: "accent" | "success" | "error" =
+			r.status === "running" ? "accent" : r.status === "ok" ? "success" : "error";
+		const elapsed = formatElapsed((r.status === "running" ? Date.now() : (r.endTime ?? Date.now())) - r.startTime);
 		const stop = r.stopReason && r.status !== "running" ? ` ${theme.fg("warning", `[${r.stopReason}]`)}` : "";
 		container.addChild(
-			new Text(`${icon} ${theme.fg(color, runDisplayName(r))}${stop} · ${theme.fg("dim", r.model)} · ${theme.fg("dim", elapsed)}`, 0, 0),
+			new Text(
+				`${icon} ${theme.fg(color, runDisplayName(r))}${stop} · ${theme.fg("dim", r.model)} · ${theme.fg("dim", elapsed)}`,
+				0,
+				0,
+			),
 		);
 		container.addChild(new Text(theme.fg("muted", "Task: ") + theme.fg("dim", preview(r.task, 110)), 0, 0));
 		if (r.currentThinking) {
@@ -270,7 +289,7 @@ export function liveDashboardText(live: LiveRun[]): string {
 	const lines: string[] = [];
 	for (const r of live) {
 		const icon = statusIcon(r.status);
-		const elapsed = formatElapsed((r.status === "running" ? Date.now() : r.endTime ?? Date.now()) - r.startTime);
+		const elapsed = formatElapsed((r.status === "running" ? Date.now() : (r.endTime ?? Date.now())) - r.startTime);
 		lines.push(`${icon} ${runDisplayName(r)} [${r.model}] ${elapsed}`);
 		if (r.currentThinking) lines.push(`   💭 ${preview(r.currentThinking, 100)}`);
 		const last = r.activities[r.activities.length - 1];
@@ -285,7 +304,12 @@ export function liveDashboardText(live: LiveRun[]): string {
 // Final results view (renderResult after the tool completes)
 // ---------------------------------------------------------------------------
 
-export function renderRunResults(results: SubagentRunResult[], mode: string, expanded: boolean, theme: Theme): Component {
+export function renderRunResults(
+	results: SubagentRunResult[],
+	mode: string,
+	expanded: boolean,
+	theme: Theme,
+): Component {
 	const container = new Container();
 	const mdTheme = getMarkdownTheme();
 	const ok = results.filter((r) => !isFailedResult(r)).length;
@@ -304,7 +328,9 @@ export function renderRunResults(results: SubagentRunResult[], mode: string, exp
 			let lastTurn = 0;
 			for (const seg of messageSegments(r.messages)) {
 				if (seg.turn && seg.turn !== lastTurn) {
-					container.addChild(new Text(theme.fg("borderMuted", `  ── turn ${seg.turn} ───────────────────`), 0, 0));
+					container.addChild(
+						new Text(theme.fg("borderMuted", `  ── turn ${seg.turn} ───────────────────`), 0, 0),
+					);
 					lastTurn = seg.turn;
 				}
 				appendSegment(container, seg, mdTheme, theme);
@@ -321,7 +347,10 @@ export function renderRunResults(results: SubagentRunResult[], mode: string, exp
 		const u = usageLine(r.usage, r.model);
 		if (u) container.addChild(new Text(theme.fg("dim", u), 0, 0));
 	}
-	if (!expanded) container.addChild(new Text(theme.fg("muted", "(Ctrl+O to expand — full transcript, tool calls and results)"), 0, 0));
+	if (!expanded)
+		container.addChild(
+			new Text(theme.fg("muted", "(Ctrl+O to expand — full transcript, tool calls and results)"), 0, 0),
+		);
 	return container;
 }
 
@@ -378,7 +407,10 @@ function transcriptBodyLines(messages: AgentMessage[], theme: Theme, width: numb
 				pushStyled(`  ${theme.fg("toolTitle", `🔧 ${seg.name}`)} ${theme.fg("dim", seg.args)}`, true);
 				break;
 			case "toolResult": {
-				lines.push({ text: seg.isError ? theme.fg("error", `  ✗ ${seg.name}`) : theme.fg("success", `  ✓ ${seg.name}`), code: false });
+				lines.push({
+					text: seg.isError ? theme.fg("error", `  ✗ ${seg.name}`) : theme.fg("success", `  ✓ ${seg.name}`),
+					code: false,
+				});
 				if (seg.text) {
 					const t = truncateBytes(seg.text, 3000);
 					budget -= t.length;
@@ -450,7 +482,6 @@ export class SubagentsBrowser implements Component {
 		return this.boxed("", width);
 	}
 
-
 	handleInput(data: string): void {
 		if (matchesKey(data, Key.escape) || matchesKey(data, Key.ctrl("c"))) {
 			if (this.view === "detail") {
@@ -477,9 +508,11 @@ export class SubagentsBrowser implements Component {
 		const runs = this.getRuns();
 		if (runs.length === 0) return;
 		if (matchesKey(data, Key.up) || data === "k") this.selected = Math.max(0, this.selected - 1);
-		else if (matchesKey(data, Key.down) || data === "j") this.selected = Math.min(runs.length - 1, this.selected + 1);
+		else if (matchesKey(data, Key.down) || data === "j")
+			this.selected = Math.min(runs.length - 1, this.selected + 1);
 		else if (matchesKey(data, Key.pageUp)) this.selected = Math.max(0, this.selected - BROWSER_PAGE);
-		else if (matchesKey(data, Key.pageDown)) this.selected = Math.min(runs.length - 1, this.selected + BROWSER_PAGE);
+		else if (matchesKey(data, Key.pageDown))
+			this.selected = Math.min(runs.length - 1, this.selected + BROWSER_PAGE);
 		else if (matchesKey(data, Key.home)) this.selected = 0;
 		else if (matchesKey(data, Key.end)) this.selected = runs.length - 1;
 		else if (matchesKey(data, Key.enter) || matchesKey(data, Key.right) || data === "l") {
@@ -545,18 +578,27 @@ export class SubagentsBrowser implements Component {
 		const totalCost = runs.reduce((s, r) => s + r.usage.cost, 0);
 		const title = th.fg("accent", th.bold(" Subagents "));
 		const summary = ` ${runs.length} runs · ${active} active · $${totalCost.toFixed(4)}`;
-		const filler = th.fg("borderMuted", "─".repeat(Math.max(0, width - 2 - visibleWidth(title) - visibleWidth(summary))));
+		const filler = th.fg(
+			"borderMuted",
+			"─".repeat(Math.max(0, width - 2 - visibleWidth(title) - visibleWidth(summary))),
+		);
 		lines.push(this.boxBorder(width, true));
 		lines.push(this.boxed(`${title}${filler}${summary}`, width));
 		lines.push(this.blankRow(width));
 
 		if (runs.length === 0) {
 			lines.push(
-				this.boxed(`  ${th.fg("dim", "No subagent runs yet — delegate work with the subagent tool and check back here.")}`, width),
+				this.boxed(
+					`  ${th.fg("dim", "No subagent runs yet — delegate work with the subagent tool and check back here.")}`,
+					width,
+				),
 			);
 		} else {
 			const maxRows = BROWSER_MAX_ROWS;
-			const start = Math.max(0, Math.min(this.selected - Math.floor(maxRows / 2), Math.max(0, runs.length - maxRows)));
+			const start = Math.max(
+				0,
+				Math.min(this.selected - Math.floor(maxRows / 2), Math.max(0, runs.length - maxRows)),
+			);
 			const end = Math.min(runs.length, start + maxRows);
 			if (start > 0) lines.push(this.boxed(`  ${th.fg("dim", `… ${start} older runs`)}`, width));
 			for (let i = start; i < end; i++) {
@@ -569,8 +611,10 @@ export class SubagentsBrowser implements Component {
 					lines.push(this.boxed(`  ${th.fg("error", preview(r.errorMessage, 100))}`, width));
 				}
 			}
-			if (end < runs.length) lines.push(this.boxed(`  ${th.fg("dim", `… ${runs.length - end} newer runs`)}`, width));
-			if (runs.length > maxRows) lines.push(this.boxed(`  ${th.fg("dim", `showing ${start + 1}–${end} of ${runs.length}`)}`, width));
+			if (end < runs.length)
+				lines.push(this.boxed(`  ${th.fg("dim", `… ${runs.length - end} newer runs`)}`, width));
+			if (runs.length > maxRows)
+				lines.push(this.boxed(`  ${th.fg("dim", `showing ${start + 1}–${end} of ${runs.length}`)}`, width));
 		}
 		lines.push(this.blankRow(width));
 		lines.push(this.boxed(th.fg("dim", " ↑/↓ j/k navigate · enter inspect · esc close"), width));
@@ -581,9 +625,18 @@ export class SubagentsBrowser implements Component {
 	private listRow(r: LiveRun): string {
 		const th = this.theme;
 		const icon = statusIcon(r.status);
-		const elapsed = r.status === "running" ? formatElapsed(Date.now() - r.startTime) : r.endTime ? formatElapsed(r.endTime - r.startTime) : "…";
+		const elapsed =
+			r.status === "running"
+				? formatElapsed(Date.now() - r.startTime)
+				: r.endTime
+					? formatElapsed(r.endTime - r.startTime)
+					: "…";
 		const status =
-			r.status === "running" ? th.fg("accent", `running ${elapsed}`) : r.status === "ok" ? th.fg("success", `ok ${elapsed}`) : th.fg("error", `error ${elapsed}`);
+			r.status === "running"
+				? th.fg("accent", `running ${elapsed}`)
+				: r.status === "ok"
+					? th.fg("success", `ok ${elapsed}`)
+					: th.fg("error", `error ${elapsed}`);
 		const parts = [icon, th.fg("accent", runDisplayName(r)), th.fg("dim", r.model), status];
 		const u = usageLine(r.usage);
 		if (u) parts.push(th.fg("dim", u));
@@ -594,11 +647,25 @@ export class SubagentsBrowser implements Component {
 		const th = this.theme;
 		const lines: string[] = [];
 		const icon = statusIcon(run.status);
-		const elapsed = run.status === "running" ? formatElapsed(Date.now() - run.startTime) : run.endTime ? formatElapsed(run.endTime - run.startTime) : "…";
+		const elapsed =
+			run.status === "running"
+				? formatElapsed(Date.now() - run.startTime)
+				: run.endTime
+					? formatElapsed(run.endTime - run.startTime)
+					: "…";
 		const status =
-			run.status === "running" ? th.fg("accent", `running ${elapsed}`) : run.status === "ok" ? th.fg("success", `ok ${elapsed}`) : th.fg("error", `error ${elapsed}`);
+			run.status === "running"
+				? th.fg("accent", `running ${elapsed}`)
+				: run.status === "ok"
+					? th.fg("success", `ok ${elapsed}`)
+					: th.fg("error", `error ${elapsed}`);
 		lines.push(this.boxBorder(width, true));
-		lines.push(this.boxed(`${icon} ${th.fg("accent", th.bold(runDisplayName(run)))} · ${th.fg("dim", run.model)} · ${status}`, width));
+		lines.push(
+			this.boxed(
+				`${icon} ${th.fg("accent", th.bold(runDisplayName(run)))} · ${th.fg("dim", run.model)} · ${status}`,
+				width,
+			),
+		);
 		const u = usageLine(run.usage);
 		if (u) lines.push(this.boxed(th.fg("dim", u), width));
 		if (run.errorMessage) lines.push(this.boxed(th.fg("error", run.errorMessage), width));

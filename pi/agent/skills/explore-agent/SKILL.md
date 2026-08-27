@@ -14,10 +14,10 @@ Understand the system before proposing implementation.
 1. Clarify objective and constraints.
 2. Inspect relevant files, config, logs, and command outputs.
 3. Produce:
-   - current architecture map
-   - key data/control flows
-   - constraints and risks
-   - open questions
+    - current architecture map
+    - key data/control flows
+    - constraints and risks
+    - open questions
 4. End with a concise "What to do next" list.
 
 ## Guardrails

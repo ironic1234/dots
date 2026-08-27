@@ -8,9 +8,7 @@
         "provider": "openai-codex",
         "baseUrl": "https://chatgpt.com/backend-api",
         "reasoning": true,
-        "input": [
-          "text"
-        ],
+        "input": ["text"],
         "cost": {
           "input": 1.75,
           "output": 14,
@@ -34,10 +32,7 @@
         "provider": "openai-codex",
         "baseUrl": "https://chatgpt.com/backend-api",
         "reasoning": true,
-        "input": [
-          "text",
-          "image"
-        ],
+        "input": ["text", "image"],
         "cost": {
           "input": 2.5,
           "output": 15,
@@ -71,10 +66,7 @@
         "provider": "openai-codex",
         "baseUrl": "https://chatgpt.com/backend-api",
         "reasoning": true,
-        "input": [
-          "text",
-          "image"
-        ],
+        "input": ["text", "image"],
         "cost": {
           "input": 0.75,
           "output": 4.5,
@@ -99,10 +91,7 @@
         "provider": "openai-codex",
         "baseUrl": "https://chatgpt.com/backend-api",
         "reasoning": true,
-        "input": [
-          "text",
-          "image"
-        ],
+        "input": ["text", "image"],
         "cost": {
           "input": 5,
           "output": 30,
@@ -136,10 +125,7 @@
         "provider": "openai-codex",
         "baseUrl": "https://chatgpt.com/backend-api",
         "reasoning": true,
-        "input": [
-          "text",
-          "image"
-        ],
+        "input": ["text", "image"],
         "cost": {
           "input": 0.2,
           "output": 1.2,
@@ -175,10 +161,7 @@
         "provider": "openai-codex",
         "baseUrl": "https://chatgpt.com/backend-api",
         "reasoning": true,
-        "input": [
-          "text",
-          "image"
-        ],
+        "input": ["text", "image"],
         "cost": {
           "input": 5,
           "output": 30,
@@ -214,10 +197,7 @@
         "provider": "openai-codex",
         "baseUrl": "https://chatgpt.com/backend-api",
         "reasoning": true,
-        "input": [
-          "text",
-          "image"
-        ],
+        "input": ["text", "image"],
         "cost": {
           "input": 2,
           "output": 12,

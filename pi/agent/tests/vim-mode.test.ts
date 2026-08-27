@@ -54,9 +54,9 @@ describe("vim mode parser", () => {
 
 	test("parses visual toggles and paste while rejecting registers/search/repeat", () => {
 		expect(parseVimCommand("v")).toEqual({ kind: "visual-toggle", mode: "VISUAL" });
-	expect(parseVimCommand("V")).toEqual({ kind: "visual-toggle", mode: "VISUAL_LINE" });
-	expect(parseVimCommand("p")).toEqual({ kind: "paste", after: true });
-	expect(parseVimCommand("P")).toEqual({ kind: "paste", after: false });
+		expect(parseVimCommand("V")).toEqual({ kind: "visual-toggle", mode: "VISUAL_LINE" });
+		expect(parseVimCommand("p")).toEqual({ kind: "paste", after: true });
+		expect(parseVimCommand("P")).toEqual({ kind: "paste", after: false });
 		expect(parseVimCommand('"a')).toBeNull();
 		expect(parseVimCommand("/foo")).toBeNull();
 		expect(parseVimCommand(".")).toBeNull();
@@ -67,12 +67,30 @@ describe("vim mode pending routing", () => {
 	test("keeps printable operator and replacement prefixes pending", () => {
 		expect(routeVimPendingInput("", "d")).toMatchObject({ pending: "d", delegate: false });
 		expect(routeVimPendingInput("d", "2")).toMatchObject({ pending: "d2", delegate: false });
-		expect(routeVimPendingInput("d2", "w")).toMatchObject({ pending: "", delegate: false, command: { kind: "delete", count: 2 } });
-		expect(routeVimPendingInput("r", "界")).toMatchObject({ pending: "", delegate: false, command: { kind: "replace", char: "界" } });
+		expect(routeVimPendingInput("d2", "w")).toMatchObject({
+			pending: "",
+			delegate: false,
+			command: { kind: "delete", count: 2 },
+		});
+		expect(routeVimPendingInput("r", "界")).toMatchObject({
+			pending: "",
+			delegate: false,
+			command: { kind: "replace", char: "界" },
+		});
 	});
 
 	test("clears pending and delegates control, enter, navigation, and Escape", () => {
-		for (const special of ["\x03", "\r", "\x1b[A", "\x1b[B", "\x1b[C", "\x1b[D", "\x1b", "\x1b[27u", "\x1b[27;1;27~"]) {
+		for (const special of [
+			"\x03",
+			"\r",
+			"\x1b[A",
+			"\x1b[B",
+			"\x1b[C",
+			"\x1b[D",
+			"\x1b",
+			"\x1b[27u",
+			"\x1b[27;1;27~",
+		]) {
 			expect(routeVimPendingInput("d", special)).toEqual({ pending: "", delegate: true, command: null });
 		}
 		for (const special of ["\x03", "\r", "\x1b[A", "\x1b", "\x1b[27u", "\x1b[27;1;27~"]) {
@@ -97,7 +115,10 @@ describe("vim mode pure mutations", () => {
 			"three",
 		]);
 		expect(applyVimCommand(["one", "two", "three"], { line: 0, col: 0 }, command("2dd")).lines).toEqual(["three"]);
-		expect(applyVimCommand(["one", "two", "three"], { line: 2, col: 1 }, command("dd")).lines).toEqual(["one", "two"]);
+		expect(applyVimCommand(["one", "two", "three"], { line: 2, col: 1 }, command("dd")).lines).toEqual([
+			"one",
+			"two",
+		]);
 	});
 
 	test("supports operator-local counts and linewise dG", () => {
@@ -108,7 +129,9 @@ describe("vim mode pure mutations", () => {
 			lines: ["one"],
 			cursor: { line: 0, col: 2 },
 		});
-		expect(applyVimCommand(["one", "two", "three", "four"], { line: 2, col: 1 }, command("d1G")).lines).toEqual(["four"]);
+		expect(applyVimCommand(["one", "two", "three", "four"], { line: 2, col: 1 }, command("d1G")).lines).toEqual([
+			"four",
+		]);
 		expect(applyVimCommand(["one", "two", "three", "four"], { line: 2, col: 1 }, command("2dG")).lines).toEqual([
 			"one",
 			"four",
@@ -118,7 +141,10 @@ describe("vim mode pure mutations", () => {
 
 	test("counts e and open-line operations", () => {
 		expect(applyVimCommand(["one two three"], { line: 0, col: 0 }, command("d2e")).lines).toEqual([" three"]);
-		expect(applyVimCommand(["one two"], { line: 0, col: 0 }, command("cw"))).toMatchObject({ lines: [" two"], mode: "INSERT" });
+		expect(applyVimCommand(["one two"], { line: 0, col: 0 }, command("cw"))).toMatchObject({
+			lines: [" two"],
+			mode: "INSERT",
+		});
 		expect(applyVimCommand(["one", "two"], { line: 0, col: 0 }, command("2o"))).toMatchObject({
 			lines: ["one", "", "", "two"],
 			cursor: { line: 1, col: 0 },
@@ -133,12 +159,21 @@ describe("vim mode pure mutations", () => {
 
 	test("supports line motions and insert transitions", () => {
 		expect(applyVimCommand(["  one", "two", "three"], { line: 0, col: 3 }, command("^")).cursor.col).toBe(2);
-		expect(applyVimCommand(["one", "two", "three"], { line: 0, col: 0 }, command("G")).cursor).toEqual({ line: 2, col: 4 });
-		expect(applyVimCommand(["one", "two", "three"], { line: 2, col: 1 }, command("1G")).cursor).toEqual({ line: 0, col: 2 });
+		expect(applyVimCommand(["one", "two", "three"], { line: 0, col: 0 }, command("G")).cursor).toEqual({
+			line: 2,
+			col: 4,
+		});
+		expect(applyVimCommand(["one", "two", "three"], { line: 2, col: 1 }, command("1G")).cursor).toEqual({
+			line: 0,
+			col: 2,
+		});
 		expect(applyVimCommand(["long", "x"], { line: 0, col: 3 }, command("j")).cursor).toEqual({ line: 1, col: 0 });
 		expect(applyVimCommand(["  ", "x"], { line: 0, col: 1 }, command("^")).cursor).toEqual({ line: 0, col: 0 });
 		expect(applyVimCommand(["  ", "x"], { line: 0, col: 1 }, command("I")).cursor).toEqual({ line: 0, col: 0 });
-		expect(applyVimCommand(["x", "  ", "word"], { line: 0, col: 0 }, command("w")).cursor).toEqual({ line: 1, col: 0 });
+		expect(applyVimCommand(["x", "  ", "word"], { line: 0, col: 0 }, command("w")).cursor).toEqual({
+			line: 1,
+			col: 0,
+		});
 		expect(applyVimCommand(["one"], { line: 0, col: 0 }, command("a")).cursor.col).toBe(1);
 		expect(applyVimCommand(["one"], { line: 0, col: 2 }, command("A")).cursor.col).toBe(3);
 		expect(applyVimCommand(["  one"], { line: 0, col: 4 }, command("I")).cursor.col).toBe(2);
@@ -519,7 +554,10 @@ describe("vim editor insert transactions", () => {
 			instance.handleInput("v");
 			instance.handleInput("$");
 			const rendered = instance.render(12);
-			expect(rendered.slice(1).some((row) => row.includes("\x1b[48;5;24m")), text).toBe(false);
+			expect(
+				rendered.slice(1).some((row) => row.includes("\x1b[48;5;24m")),
+				text,
+			).toBe(false);
 			// Raw ANSI width is owned by the base Editor; this extension only
 			// guarantees that fallback leaves those rows untouched.
 			if (!text.includes("\x1b")) {
