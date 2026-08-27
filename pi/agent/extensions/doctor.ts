@@ -38,7 +38,6 @@ const REQUIRED_EXTENSIONS = [
   "checkpoint.ts",
   "session-automation.ts",
   "recheck/index.ts",
-  "opencode-free-models.ts",
   "robinhood-mcp/index.ts",
 ];
 

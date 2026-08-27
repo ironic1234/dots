@@ -1,7 +1,7 @@
 ---
 name: reviewer
 description: Critical code review of changes or files
-model: opencode/deepseek-v4-flash-free
+model: openai-codex/gpt-5.6-luna
 tools: read, grep, find, ls, bash
 thinking: high
 timeoutSec: 240

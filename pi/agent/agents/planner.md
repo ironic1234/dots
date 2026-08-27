@@ -1,7 +1,7 @@
 ---
 name: planner
 description: Creates concrete implementation plans with ordered steps
-model: opencode/deepseek-v4-flash-free
+model: openai-codex/gpt-5.6-luna
 tools: read, grep, find, ls
 thinking: high
 timeoutSec: 240

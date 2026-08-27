@@ -1,7 +1,7 @@
 ---
 name: scout
 description: Fast codebase recon; returns a compressed context summary
-model: opencode/deepseek-v4-flash-free
+model: openai-codex/gpt-5.6-luna
 tools: read, grep, find, ls, bash
 thinking: low
 timeoutSec: 180
