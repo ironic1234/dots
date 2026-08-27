@@ -2,21 +2,26 @@
 """Validate draw.io XML structure and rendered diagram geometry.
 
 The XML checks catch broken mxGraph references. When the draw.io desktop CLI is
-available, SVG checks validate the geometry that draw.io actually renders.
-The script intentionally uses only Python's standard library.
+available, SVG checks validate the geometry that draw.io actually renders,
+including label containment and label/box/connector collisions. The script
+intentionally uses only Python's standard library.
 """
 
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import math
 import re
 import shutil
+import struct
 import subprocess
 import sys
 import tempfile
+import urllib.parse
 import xml.etree.ElementTree as ET
+import zlib
 from dataclasses import dataclass
 from itertools import combinations
 from pathlib import Path
@@ -127,8 +132,141 @@ class Page:
 # XML and graph helpers
 
 
+class PngFormatError(ValueError):
+    """The input is not a well-formed PNG container."""
+
+
+class EmbeddedDiagramError(ValueError):
+    """The PNG is valid but does not contain usable draw.io XML."""
+
+
+PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+
+
 def local_name(tag: str) -> str:
     return tag.rsplit("}", 1)[-1]
+
+
+def is_drawio_png(path: Path) -> bool:
+    return path.name.lower().endswith(".drawio.png")
+
+
+def iter_png_text_chunks(path: Path) -> Iterable[Tuple[str, bytes]]:
+    """Yield PNG text chunks without depending on Pillow."""
+    try:
+        stream = path.open("rb")
+    except OSError:
+        raise
+    with stream:
+        if stream.read(8) != PNG_SIGNATURE:
+            raise PngFormatError("file is not a PNG")
+        while True:
+            raw_length = stream.read(4)
+            if not raw_length:
+                raise PngFormatError("PNG ended before IEND")
+            if len(raw_length) != 4:
+                raise PngFormatError("truncated PNG chunk length")
+            length = struct.unpack(">I", raw_length)[0]
+            if length > 64 * 1024 * 1024:
+                raise PngFormatError("PNG chunk is unreasonably large")
+            chunk_type = stream.read(4)
+            if len(chunk_type) != 4:
+                raise PngFormatError("truncated PNG chunk type")
+            data = stream.read(length)
+            raw_crc = stream.read(4)
+            if len(data) != length or len(raw_crc) != 4:
+                raise PngFormatError("truncated PNG chunk data")
+            expected_crc = struct.unpack(">I", raw_crc)[0]
+            actual_crc = zlib.crc32(chunk_type + data) & 0xFFFFFFFF
+            if actual_crc != expected_crc:
+                raise PngFormatError(
+                    f"invalid CRC for PNG chunk {chunk_type.decode('latin-1')!r}"
+                )
+
+            if chunk_type == b"tEXt":
+                keyword, separator, value = data.partition(b"\x00")
+                if separator:
+                    yield keyword.decode("latin-1"), value
+            elif chunk_type == b"zTXt":
+                keyword, separator, value = data.partition(b"\x00")
+                if separator and value:
+                    if value[0] != 0:
+                        continue
+                    try:
+                        value = zlib.decompress(value[1:])
+                    except zlib.error:
+                        continue
+                    yield keyword.decode("latin-1"), value
+            elif chunk_type == b"iTXt":
+                keyword, separator, remainder = data.partition(b"\x00")
+                if not separator or len(remainder) < 2:
+                    continue
+                compressed = remainder[0]
+                compression_method = remainder[1]
+                remainder = remainder[2:]
+                _, separator, remainder = remainder.partition(b"\x00")
+                if not separator:
+                    continue
+                _, separator, value = remainder.partition(b"\x00")
+                if not separator:
+                    continue
+                if compressed:
+                    if compression_method != 0:
+                        continue
+                    try:
+                        value = zlib.decompress(value)
+                    except zlib.error:
+                        continue
+                yield keyword.decode("utf-8", "replace"), value
+
+            if chunk_type == b"IEND":
+                return
+
+
+def embedded_xml_candidates(payload: bytes) -> Iterable[bytes]:
+    current = payload
+    for _ in range(3):
+        yield current
+        try:
+            unquoted = urllib.parse.unquote_to_bytes(current.decode("latin-1"))
+        except (UnicodeDecodeError, ValueError):
+            return
+        if unquoted == current:
+            return
+        current = unquoted
+
+
+def extract_embedded_diagram(path: Path) -> ET.Element:
+    """Extract the mxfile/mxGraphModel stored by draw.io in a PNG text chunk."""
+    found_metadata = False
+    for keyword, payload in iter_png_text_chunks(path):
+        if keyword.lower() not in {"mxfile", "mxgraphmodel"}:
+            continue
+        found_metadata = True
+        for candidate in embedded_xml_candidates(payload):
+            try:
+                root = ET.fromstring(candidate)
+            except ET.ParseError:
+                continue
+            root_name = local_name(root.tag)
+            if root_name == "mxfile":
+                return root
+            if root_name == "mxGraphModel":
+                wrapper = ET.Element(
+                    "mxfile",
+                    {"host": "app.diagrams.net", "type": "device"},
+                )
+                diagram = ET.SubElement(
+                    wrapper,
+                    "diagram",
+                    {"id": "embedded-page-1", "name": "Page-1"},
+                )
+                diagram.append(root)
+                return wrapper
+
+    if found_metadata:
+        raise EmbeddedDiagramError("PNG contains invalid embedded draw.io XML")
+    raise EmbeddedDiagramError("PNG contains no embedded draw.io XML")
 
 
 def children(element: ET.Element, name: str) -> List[ET.Element]:
@@ -162,6 +300,65 @@ def style_map(style: str) -> Dict[str, str]:
             key, value = item.split("=", 1)
             result[key] = value
     return result
+
+
+def style_tokens(style: str) -> set[str]:
+    return {item for item in style.split(";") if item and "=" not in item}
+
+
+def has_style_token(style: str, token: str) -> bool:
+    return token in style_tokens(style)
+
+
+def is_text_cell(cell: ET.Element) -> bool:
+    styles = style_map(cell.get("style", ""))
+    return has_style_token(cell.get("style", ""), "text") or styles.get("shape") == "text"
+
+
+def is_edge_label_style(cell: ET.Element) -> bool:
+    styles = style_map(cell.get("style", ""))
+    return has_style_token(cell.get("style", ""), "edgeLabel") or styles.get(
+        "edgeLabel"
+    ) == "1"
+
+
+def is_edge_label_cell(page: Page, cell_id: str) -> bool:
+    cell = page.cells.get(cell_id)
+    if cell is None:
+        return False
+    return is_edge_label_style(cell) or page.parents.get(cell_id) in page.edge_ids
+
+
+def is_box_cell(page: Page, cell_id: str) -> bool:
+    cell = page.cells.get(cell_id)
+    return bool(
+        cell is not None
+        and cell_id in page.vertex_ids
+        and not is_edge_label_cell(page, cell_id)
+        and not is_text_cell(cell)
+        and page.parents.get(cell_id) not in page.edge_ids
+    )
+
+
+def label_text(value: str) -> str:
+    """Return visible-ish text from a draw.io HTML label value."""
+    value = html.unescape(value or "")
+    value = re.sub(r"<br\s*/?>", "\n", value, flags=re.IGNORECASE)
+    value = re.sub(
+        r"</(?:div|p|li|tr|h[1-6])\s*>",
+        "\n",
+        value,
+        flags=re.IGNORECASE,
+    )
+    value = re.sub(r"<[^>]*>", " ", value)
+    return " ".join(value.replace("\xa0", " ").split())
+
+
+def has_label_content(value: str) -> bool:
+    decoded = html.unescape(value or "")
+    return bool(label_text(decoded)) or bool(
+        re.search(r"<(?:img|svg|object|iframe|video|canvas)\b", decoded, re.IGNORECASE)
+    )
 
 
 def is_hidden(cell: ET.Element) -> bool:
@@ -199,6 +396,20 @@ def positive_overlap(a: Rect, b: Rect, tolerance: float = 0.0) -> bool:
     width = min(a.right, b.right) - max(a.x, b.x)
     height = min(a.bottom, b.bottom) - max(a.y, b.y)
     return width > tolerance and height > tolerance
+
+
+def rect_overflow(inner: Rect, outer: Rect, tolerance: float = 0.0) -> Dict[str, float]:
+    overflow = {
+        "left": max(outer.x - inner.x, 0.0),
+        "top": max(outer.y - inner.y, 0.0),
+        "right": max(inner.right - outer.right, 0.0),
+        "bottom": max(inner.bottom - outer.bottom, 0.0),
+    }
+    return {
+        side: amount
+        for side, amount in overflow.items()
+        if amount > tolerance + EPSILON
+    }
 
 
 def point_to_rect_boundary_distance(point: Point, rect: Rect) -> float:
@@ -805,6 +1016,317 @@ def walk_owned(
         yield from walk_owned(descendant, current_matrix, owner_id)
 
 
+def walk_owned_with_context(
+    element: ET.Element,
+    parent_matrix: Matrix,
+    owner_id: str,
+    ancestors: Tuple[ET.Element, ...] = (),
+) -> Iterable[Tuple[ET.Element, Matrix, Tuple[ET.Element, ...]]]:
+    """Yield owned SVG descendants with transforms and inherited-style context."""
+    current_matrix = multiply_matrix(
+        parent_matrix,
+        transform_from_attribute(element.get("transform", "")),
+    )
+    for descendant in list(element):
+        descendant_id = descendant.get("data-cell-id")
+        if descendant_id is not None and descendant_id != owner_id:
+            continue
+        descendant_matrix = multiply_matrix(
+            current_matrix,
+            transform_from_attribute(descendant.get("transform", "")),
+        )
+        descendant_ancestors = ancestors + (element,)
+        yield descendant, descendant_matrix, descendant_ancestors
+        yield from walk_owned_with_context(
+            descendant,
+            current_matrix,
+            owner_id,
+            descendant_ancestors,
+        )
+
+
+def css_style_map(style: str) -> Dict[str, str]:
+    result: Dict[str, str] = {}
+    for declaration in style.split(";"):
+        if ":" in declaration:
+            key, value = declaration.split(":", 1)
+            result[key.strip().lower()] = value.strip()
+    return result
+
+
+def svg_style_value(
+    element: ET.Element,
+    ancestors: Sequence[ET.Element],
+    property_name: str,
+) -> Optional[str]:
+    """Read an SVG presentation property, including inherited group styles."""
+    property_name = property_name.lower()
+    for candidate in (element, *reversed(ancestors)):
+        value = candidate.get(property_name)
+        if value is not None:
+            return value
+        value = css_style_map(candidate.get("style", "")).get(property_name)
+        if value is not None:
+            return value
+    return None
+
+
+def css_number(value: Optional[str], default: Optional[float] = None) -> Optional[float]:
+    if value is None:
+        return default
+    match = re.search(NUMBER_RE, value)
+    if match is None:
+        return default
+    try:
+        number = float(match.group(0))
+    except ValueError:
+        return default
+    unit = value[match.end() :].strip().lower()
+    if unit.startswith("pt"):
+        number *= 96.0 / 72.0
+    elif unit.startswith("in"):
+        number *= 96.0
+    elif unit.startswith("cm"):
+        number *= 96.0 / 2.54
+    elif unit.startswith("mm"):
+        number *= 96.0 / 25.4
+    return number if math.isfinite(number) else default
+
+
+def svg_text_content(element: ET.Element) -> str:
+    parts: List[str] = []
+    if element.text:
+        parts.append(element.text)
+    for descendant in list(element):
+        if local_name(descendant.tag) == "br":
+            parts.append("\n")
+        else:
+            parts.append(svg_text_content(descendant))
+        if descendant.tail:
+            parts.append(descendant.tail)
+    return "".join(parts)
+
+
+def estimated_text_width(value: str, font_size: float) -> float:
+    """Conservatively estimate an SVG text run when no browser bbox exists."""
+    widths = 0.0
+    for character in value:
+        if character in "\r\n":
+            continue
+        if character.isspace():
+            factor = 0.33
+        elif character in "ilI.,:;!'|`\\\"()[]{}":
+            factor = 0.28
+        elif character in "MW@#%&":
+            factor = 0.88
+        elif character.isupper() or character.isdigit():
+            factor = 0.64
+        else:
+            factor = 0.55
+        widths += font_size * factor
+    return widths
+
+
+def svg_image_bbox(element: ET.Element, matrix: Matrix) -> Optional[Rect]:
+    x = parse_float(element, "x", 0.0)
+    y = parse_float(element, "y", 0.0)
+    width = parse_float(element, "width")
+    height = parse_float(element, "height")
+    if None in (x, y, width, height) or width < 0 or height < 0:
+        return None
+    points = [
+        transform_point(matrix, Point(x, y)),
+        transform_point(matrix, Point(x + width, y)),
+        transform_point(matrix, Point(x + width, y + height)),
+        transform_point(matrix, Point(x, y + height)),
+    ]
+    return bbox_from_points(points)
+
+
+def svg_text_bbox(
+    element: ET.Element,
+    matrix: Matrix,
+    ancestors: Sequence[ET.Element],
+) -> Optional[Rect]:
+    value = svg_text_content(element)
+    if not value.strip():
+        return None
+
+    x_match = re.search(NUMBER_RE, element.get("x", ""))
+    y_match = re.search(NUMBER_RE, element.get("y", ""))
+    if x_match is None or y_match is None:
+        return None
+    x = float(x_match.group(0))
+    y = float(y_match.group(0))
+    dx = css_number(element.get("dx"), 0.0) or 0.0
+    dy = css_number(element.get("dy"), 0.0) or 0.0
+    x += dx
+    y += dy
+
+    font_size = css_number(
+        svg_style_value(element, ancestors, "font-size"),
+        12.0,
+    ) or 12.0
+    lines = value.splitlines() or [value]
+    line_widths = [
+        estimated_text_width(line, font_size)
+        for line in lines
+    ]
+    width = max(line_widths, default=0.0)
+    text_length = css_number(element.get("textLength"))
+    if text_length is not None and len(lines) == 1:
+        width = text_length
+    letter_spacing = css_number(
+        svg_style_value(element, ancestors, "letter-spacing"),
+        0.0,
+    ) or 0.0
+    width += max(len(value) - len(lines), 0) * letter_spacing
+
+    anchor = (svg_style_value(element, ancestors, "text-anchor") or "start").lower()
+    if anchor == "middle":
+        left = x - width / 2
+    elif anchor in {"end", "right"}:
+        left = x - width
+    else:
+        left = x
+
+    line_height = font_size * 1.2
+    baseline = (
+        svg_style_value(element, ancestors, "dominant-baseline") or ""
+    ).lower()
+    if baseline in {"middle", "central"}:
+        top = y - (len(lines) * line_height) / 2
+    elif baseline in {"hanging", "text-before-edge"}:
+        top = y
+    else:
+        top = y - font_size * 0.8
+    bottom = top + max(len(lines) * line_height, font_size)
+
+    points = [
+        transform_point(matrix, Point(left, top)),
+        transform_point(matrix, Point(left + width, top)),
+        transform_point(matrix, Point(left + width, bottom)),
+        transform_point(matrix, Point(left, bottom)),
+    ]
+    return bbox_from_points(points)
+
+
+def rendered_foreign_object_bbox(
+    element: ET.Element,
+    matrix: Matrix,
+) -> Optional[Rect]:
+    """Approximate a foreignObject label when its SVG fallback image is absent."""
+    text = svg_text_content(element)
+    if not text.strip():
+        return None
+
+    layout: Optional[ET.Element] = None
+    for descendant in element.iter():
+        styles = css_style_map(descendant.get("style", ""))
+        if "width" in styles and (
+            "margin-left" in styles or "padding-top" in styles
+        ):
+            layout = descendant
+            break
+    if layout is None:
+        return None
+    styles = css_style_map(layout.get("style", ""))
+    x = css_number(styles.get("margin-left"), 0.0) or 0.0
+    y = css_number(styles.get("padding-top"), 0.0) or 0.0
+    width = css_number(styles.get("width"))
+
+    font_size = 12.0
+    white_space = "normal"
+    for descendant in reversed(list(element.iter())):
+        descendant_styles = css_style_map(descendant.get("style", ""))
+        font_size = css_number(descendant_styles.get("font-size"), font_size) or font_size
+        white_space = descendant_styles.get("white-space", white_space).lower()
+
+    lines = text.replace("\r", "").split("\n") or [text]
+    measured_width = max(
+        (estimated_text_width(line, font_size) for line in lines),
+        default=0.0,
+    )
+    if width is None or width <= 1 or white_space == "nowrap":
+        label_width = measured_width
+        line_count = len(lines)
+    else:
+        label_width = width
+        line_count = 0
+        for line in lines:
+            line_count += max(1, math.ceil(estimated_text_width(line, font_size) / width))
+    label_height = max(font_size, line_count * font_size * 1.2)
+    points = [
+        transform_point(matrix, Point(x, y - label_height / 2)),
+        transform_point(matrix, Point(x + label_width, y - label_height / 2)),
+        transform_point(matrix, Point(x + label_width, y + label_height / 2)),
+        transform_point(matrix, Point(x, y + label_height / 2)),
+    ]
+    return bbox_from_points(points)
+
+
+def rendered_label_bboxes(group: ET.Element, cell_id: str) -> List[Rect]:
+    """Extract visible label bounds from a rendered data-cell group."""
+    owned = list(walk_owned_with_context(group, IDENTITY, cell_id))
+    matrices = {id(element): matrix for element, matrix, _ in owned}
+    label_image_ids: set[int] = set()
+    foreign_objects: List[Tuple[ET.Element, Matrix]] = []
+
+    for element, matrix, _ in owned:
+        tag = local_name(element.tag)
+        if tag == "foreignObject":
+            foreign_objects.append((element, matrix))
+        if tag != "switch":
+            continue
+        if not any(local_name(descendant.tag) == "foreignObject" for descendant in element.iter()):
+            continue
+        for descendant in element.iter():
+            if local_name(descendant.tag) == "image":
+                label_image_ids.add(id(descendant))
+
+    result: List[Rect] = []
+    for element, matrix, _ in owned:
+        if local_name(element.tag) == "image" and id(element) in label_image_ids:
+            bbox = svg_image_bbox(element, matrix)
+            if bbox is not None:
+                result.append(bbox)
+
+    if not result:
+        for element, matrix in foreign_objects:
+            bbox = rendered_foreign_object_bbox(element, matrix)
+            if bbox is not None:
+                result.append(bbox)
+
+    for element, matrix, ancestors in owned:
+        if local_name(element.tag) == "text":
+            bbox = svg_text_bbox(element, matrix, ancestors)
+            if bbox is not None:
+                result.append(bbox)
+    return result
+
+
+def is_svg_stroke_path(element: ET.Element) -> bool:
+    pointer_events = element.get("pointer-events", "")
+    style = element.get("style", "").replace(" ", "").lower()
+    fill = element.get("fill", "").replace(" ", "").lower()
+    return "stroke" in pointer_events or fill == "none" or "fill:none" in style
+
+
+def rendered_edge_arrowheads(
+    group: ET.Element,
+    cell_id: str,
+) -> List[List[Point]]:
+    arrowheads: List[List[Point]] = []
+    for element, matrix, _ in walk_owned_with_context(group, IDENTITY, cell_id):
+        if local_name(element.tag) != "path" or is_svg_stroke_path(element):
+            continue
+        for path in parse_path(element.get("d", "")):
+            transformed = [transform_point(matrix, point) for point in path]
+            if len(transformed) >= 2:
+                arrowheads.append(transformed)
+    return arrowheads
+
+
 def svg_groups(root: ET.Element) -> Dict[str, ET.Element]:
     result: Dict[str, ET.Element] = {}
     for element in root.iter():
@@ -887,12 +1409,176 @@ class Validator:
         assert self.report is not None
         self.report.findings.append(Finding(severity, code, message, page, cell))
 
+    def label_targets(self, page: Page) -> List[Tuple[str, str, str]]:
+        """Return (label cell, kind, owning box/edge) tuples for visible labels."""
+        targets: List[Tuple[str, str, str]] = []
+        for edge_id in page.edge_ids:
+            cell = page.cells[edge_id]
+            if (
+                has_label_content(cell.get("value", ""))
+                and style_map(cell.get("style", "")).get("noLabel") != "1"
+            ):
+                targets.append((edge_id, "edge", edge_id))
+
+        for cell_id in page.vertex_ids:
+            cell = page.cells[cell_id]
+            if (
+                not has_label_content(cell.get("value", ""))
+                or style_map(cell.get("style", "")).get("noLabel") == "1"
+            ):
+                continue
+            if is_edge_label_cell(page, cell_id):
+                edge_id = page.parents.get(cell_id)
+                if edge_id in page.edge_ids:
+                    targets.append((cell_id, "edge", edge_id))
+                continue
+            if is_text_cell(cell):
+                parent_id = page.parents.get(cell_id)
+                if parent_id is not None and is_box_cell(page, parent_id):
+                    targets.append((cell_id, "child", parent_id))
+                # Standalone text cells are commonly used for ports and other
+                # intentional external annotations, so they have no owning box.
+                continue
+            if is_box_cell(page, cell_id) and style_map(cell.get("style", "")).get(
+                "noLabel"
+            ) != "1":
+                targets.append((cell_id, "box", cell_id))
+        return targets
+
+    def check_rendered_labels(
+        self,
+        page: Page,
+        groups: Dict[str, ET.Element],
+        rendered_rects: Dict[str, Rect],
+        routes: Dict[str, List[Point]],
+        arrowheads: Dict[str, List[List[Point]]],
+    ) -> None:
+        label_tolerance = getattr(self.args, "label_tolerance", 1.0)
+        box_rects = {
+            cell_id: rect
+            for cell_id, rect in rendered_rects.items()
+            if is_box_cell(page, cell_id)
+        }
+
+        for label_id, kind, owner_id in self.label_targets(page):
+            if is_effectively_hidden(page, label_id):
+                continue
+            group = groups.get(label_id)
+            if group is None:
+                self.add(
+                    "warning",
+                    "label-not-rendered",
+                    "label has no matching SVG cell group",
+                    page.name,
+                    label_id,
+                )
+                continue
+            label_rects = rendered_label_bboxes(group, label_id)
+            label_rect = union_rects(label_rects)
+            if label_rect is None:
+                self.add(
+                    "warning",
+                    "label-bounds-unknown",
+                    "could not determine rendered label bounds",
+                    page.name,
+                    label_id,
+                )
+                continue
+
+            if kind in {"box", "child"}:
+                box_rect = rendered_rects.get(owner_id)
+                if box_rect is None:
+                    self.add(
+                        "warning",
+                        "label-box-bounds-unknown",
+                        f"could not determine rendered bounds for owning box {owner_id!r}",
+                        page.name,
+                        label_id,
+                    )
+                else:
+                    overflow = rect_overflow(label_rect, box_rect, label_tolerance)
+                    if overflow:
+                        details = ", ".join(
+                            f"{side} {amount:.1f}px" for side, amount in overflow.items()
+                        )
+                        self.add(
+                            "error",
+                            "label-outside-box",
+                            f"rendered label extends outside its owning box ({details})",
+                            page.name,
+                            label_id,
+                        )
+                continue
+
+            # Edge labels are intentionally drawn over their own connector
+            # stroke in draw.io.  They still must stay between boxes and away
+            # from arrowheads and unrelated connectors.
+            for box_id, box_rect in box_rects.items():
+                if positive_overlap(label_rect, box_rect):
+                    self.add(
+                        "error",
+                        "edge-label-box-overlap",
+                        f"edge label overlaps box {box_id!r}",
+                        page.name,
+                        label_id,
+                    )
+
+            for other_edge_id, route in routes.items():
+                if other_edge_id == owner_id:
+                    continue
+                if any(
+                    segment_intersects_rect(first, second, label_rect)
+                    for first, second in segments(route)
+                ):
+                    self.add(
+                        "error",
+                        "edge-label-edge-overlap",
+                        f"edge label overlaps connector {other_edge_id!r}",
+                        page.name,
+                        label_id,
+                    )
+
+            reported_arrow_edges: set[str] = set()
+            for arrow_edge_id, paths in arrowheads.items():
+                if arrow_edge_id in reported_arrow_edges:
+                    continue
+                for path in paths:
+                    arrow_rect = bbox_from_points(path)
+                    if arrow_rect is None or not positive_overlap(label_rect, arrow_rect):
+                        continue
+                    if not any(
+                        segment_intersects_rect(first, second, label_rect)
+                        for first, second in segments(path)
+                    ):
+                        # An arrowhead can be wholly inside a label rectangle,
+                        # in which case no boundary segment crosses the label.
+                        continue
+                    self.add(
+                        "error",
+                        "edge-label-arrow-overlap",
+                        f"edge label overlaps arrowhead of edge {arrow_edge_id!r}",
+                        page.name,
+                        label_id,
+                    )
+                    reported_arrow_edges.add(arrow_edge_id)
+                    break
+
     def validate_file(self, path: Path) -> Report:
         self.report = Report(str(path), [])
         self.rendered_routes.clear()
         self.rendered_rects.clear()
+        source_is_png = is_drawio_png(path)
         try:
-            tree = ET.parse(path)
+            if source_is_png:
+                tree = ET.ElementTree(extract_embedded_diagram(path))
+            else:
+                tree = ET.parse(path)
+        except PngFormatError as error:
+            self.add("error", "png-parse", str(error))
+            return self.report
+        except EmbeddedDiagramError as error:
+            self.add("error", "embedded-diagram", str(error))
+            return self.report
         except (ET.ParseError, OSError) as error:
             self.add("error", "xml-parse", str(error))
             return self.report
@@ -910,6 +1596,10 @@ class Validator:
         seen_page_ids: set[str] = set()
         with tempfile.TemporaryDirectory(prefix="drawio-validate-") as temporary:
             temporary_path = Path(temporary)
+            render_source = path
+            if source_is_png:
+                render_source = temporary_path / "embedded.drawio"
+                tree.write(render_source, encoding="utf-8", xml_declaration=True)
             for index, diagram in enumerate(diagrams, start=1):
                 page_id = diagram.get("id", f"page-{index}")
                 page_name = diagram.get("name", page_id)
@@ -964,7 +1654,7 @@ class Validator:
                         render_dir.mkdir(parents=True, exist_ok=True)
                         safe_name = re.sub(r"[^A-Za-z0-9_.-]+", "_", path.name)
                         output = render_dir / f"{safe_name}-page-{index}.svg"
-                    self.render_page(path, page, output)
+                    self.render_page(render_source, page, output)
 
         return self.report
 
@@ -1107,6 +1797,8 @@ class Validator:
                 current = page.parents.get(current)
 
         for cell_id in page.vertex_ids:
+            if is_edge_label_cell(page, cell_id):
+                continue
             element = page.cells[cell_id]
             geo = page.geometry.get(cell_id)
             if geo is None:
@@ -1266,7 +1958,9 @@ class Validator:
         visible = [
             cell_id
             for cell_id in page.vertex_ids
-            if not is_effectively_hidden(page, cell_id) and cell_id in page.rects
+            if is_box_cell(page, cell_id)
+            and not is_effectively_hidden(page, cell_id)
+            and cell_id in page.rects
         ]
         for first, second in combinations(visible, 2):
             # Containment is intentional for groups/swimlanes and their children;
@@ -1296,6 +1990,8 @@ class Validator:
             target = edge.get("target")
             for first, second in segments(route):
                 for vertex_id in page.vertex_ids:
+                    if not is_box_cell(page, vertex_id):
+                        continue
                     if vertex_id in {source, target} or is_effectively_hidden(page, vertex_id):
                         continue
                     if is_ancestor(page, vertex_id, source or "") or is_ancestor(
@@ -1425,7 +2121,7 @@ class Validator:
         groups = svg_groups(svg_root)
         rendered_rects: Dict[str, Rect] = {}
         for cell_id in page.vertex_ids:
-            if is_effectively_hidden(page, cell_id):
+            if is_edge_label_cell(page, cell_id) or is_effectively_hidden(page, cell_id):
                 continue
             group = groups.get(cell_id)
             if group is None:
@@ -1451,6 +2147,7 @@ class Validator:
                 self.rendered_rects[(page.index, cell_id)] = rect
 
         routes: Dict[str, List[Point]] = {}
+        arrowheads: Dict[str, List[List[Point]]] = {}
         for edge_id in page.edge_ids:
             edge = page.cells[edge_id]
             source = edge.get("source")
@@ -1467,6 +2164,7 @@ class Validator:
                     edge_id,
                 )
                 continue
+            arrowheads[edge_id] = rendered_edge_arrowheads(group, edge_id)
             route = rendered_edge_route(group, edge_id)
             if route is None or len(route) < 2:
                 self.add(
@@ -1505,6 +2203,8 @@ class Validator:
 
             for first, second in segments(route):
                 for vertex_id, rect in rendered_rects.items():
+                    if not is_box_cell(page, vertex_id):
+                        continue
                     if vertex_id in {source, target} or is_effectively_hidden(
                         page, vertex_id
                     ):
@@ -1527,6 +2227,13 @@ class Validator:
                         )
                         break
 
+        self.check_rendered_labels(
+            page,
+            groups,
+            rendered_rects,
+            routes,
+            arrowheads,
+        )
         self.check_edge_crossings(page, routes)
 
 
@@ -1548,12 +2255,12 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         "files",
         nargs="+",
         type=Path,
-        help=".drawio or .drawio.xml files to validate",
+        help=".drawio, .drawio.xml, or .drawio.png files to validate",
     )
     parser.add_argument(
         "--no-render",
         action="store_true",
-        help="skip draw.io SVG rendering and use XML geometry only",
+        help="skip draw.io SVG rendering and use XML geometry only (no rendered label checks)",
     )
     parser.add_argument(
         "--require-render",
@@ -1576,6 +2283,12 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         type=float,
         default=16.0,
         help="allowed rendered distance from an edge path endpoint to a shape (default: 16)",
+    )
+    parser.add_argument(
+        "--label-tolerance",
+        type=float,
+        default=1.0,
+        help="allowed rendered label overflow beyond its owning box in pixels (default: 1)",
     )
     parser.add_argument(
         "--allow-floating",

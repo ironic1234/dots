@@ -1,7 +1,7 @@
 ---
 name: drawio-xml
-description: Create and edit draw.io diagrams as native, uncompressed XML files. Use when working with .drawio or .drawio.xml files, especially when the diagram must remain directly editable in the macOS draw.io desktop app.
-compatibility: macOS with /Applications/draw.io.app installed; diagrams use plain mxGraph XML rather than compressed or encoded diagram data.
+description: Create and edit draw.io diagrams as native, uncompressed XML files, including embedded .drawio.png files. Use when working with .drawio, .drawio.xml, or .drawio.png files, especially when the diagram must remain directly editable in the macOS draw.io desktop app.
+compatibility: macOS with /Applications/draw.io.app installed; diagram XML is plain mxGraph XML rather than compressed or encoded data (the `.drawio.png` wrapper may URL-encode its embedded XML).
 allowed-tools: read edit write bash
 ---
 
@@ -11,8 +11,8 @@ Create and modify draw.io files directly as plain XML. The file itself is the so
 
 ## Non-negotiable format rules
 
-- Use a `.drawio` or `.drawio.xml` file containing an `<mxfile>` document.
-- Keep each `<diagram>` child uncompressed. Its child must be an `<mxGraphModel>`, not a base64/deflate string.
+- Use a `.drawio` or `.drawio.xml` file containing an `<mxfile>` document, or a `.drawio.png` file with that XML embedded in PNG metadata.
+- Keep each `<diagram>` child uncompressed. Its child must be an `<mxGraphModel>`, not a base64/deflate string. The verifier extracts embedded XML from `.drawio.png` files before applying the same checks.
 - Keep the standard root cells in every page:
   - `<mxCell id="0"/>`
   - `<mxCell id="1" parent="0"/>`
@@ -104,9 +104,9 @@ Common edge styles include:
 
 Use the smallest style change that satisfies the request. Preserve custom styles from an existing file instead of normalizing them.
 
-## PNG previews for visual inspection
+## PNG previews and embedded `.drawio.png` sources
 
-The installed desktop app includes a command-line exporter. Use it to render a temporary PNG after creating or editing a diagram, especially when checking that arrows visibly meet their boxes:
+The verifier accepts `.drawio.png` files produced by draw.io and extracts their embedded `mxfile` XML from PNG text metadata before validating or rendering them. The installed desktop app also includes a command-line exporter; use it to render a temporary PNG after creating or editing a diagram, especially when checking that arrows visibly meet their boxes:
 
 ```bash
 preview_dir="$(mktemp -d "${TMPDIR:-/tmp}/drawio-preview.XXXXXX")"
@@ -147,15 +147,17 @@ Checks include:
 - positive-area overlap between unrelated visible boxes/shapes;
 - XML-estimated edge routes intersecting unrelated boxes;
 - crossings between unrelated edge routes as warnings;
-- actual SVG-rendered shape bounds and edge routes, including disconnected endpoints and rendered edge/box collisions.
+- actual SVG-rendered shape bounds and edge routes, including disconnected endpoints and rendered edge/box collisions;
+- rendered vertex labels staying inside their owning boxes, including HTML labels and explicitly parented text labels;
+- edge-label collisions with visible boxes, arrowheads, and unrelated connector routes (while allowing an edge label to sit on its own main stroke). Standalone `text` vertices remain annotations unless they are explicitly parented to a box.
 
-Use `--no-render` only when draw.io is unavailable or when a fast XML/static-geometry check is specifically desired. Use `--allow-floating` only for diagrams that intentionally contain floating connectors. `--strict` turns warnings (including edge crossings and intentional-quality concerns) into failures. `--render-dir DIR` keeps the generated per-page SVGs for debugging; otherwise they are temporary.
+Use `--no-render` only when draw.io is unavailable or when a fast XML/static-geometry check is specifically desired; label placement and label collision checks use rendered SVG geometry. Use `--allow-floating` only for diagrams that intentionally contain floating connectors. `--strict` turns warnings (including edge crossings and intentional-quality concerns) into failures. `--render-dir DIR` keeps the generated per-page SVGs for debugging; otherwise they are temporary. `--label-tolerance N` controls the permitted rendered label overflow beyond a box (default: 1 pixel).
 
 The validator is intentionally conservative: container/swimlane children are allowed to overlap their ancestor, and edges are allowed to touch their own source/target shapes. Unrelated boxes and connector crossings are not silently accepted.
 
 ## Workflow
 
-1. **Identify the target.** Locate the requested `.drawio`/`.drawio.xml` file. If it exists, read the complete XML before editing; identify the relevant page, cell IDs, parents, sources, and targets.
+1. **Identify the target.** Locate the requested `.drawio`, `.drawio.xml`, or `.drawio.png` file. If it exists, read the complete XML before editing; for `.drawio.png`, extract/read its embedded XML through the verifier and identify the relevant page, cell IDs, parents, sources, and targets.
 2. **Plan the graph.** Translate the requested concepts into vertices, edges, labels, pages, and approximate coordinates. Reuse existing cells and IDs for edits. Choose new IDs that do not collide.
 3. **Write the XML.** Make the smallest targeted edit with `edit` when possible. Use `write` for a new file. Keep the document readable and uncompressed.
 4. **Run programmatic validation.** From the skill directory, run `python3 scripts/validate-drawio.py --require-render --strict` and fix every reported error or warning. Use `--render-dir` when debugging a geometry finding.
