@@ -189,30 +189,13 @@ brew_install_cask font-jetbrains-mono-nerd-font
 
 # Window management
 brew_install_cask hammerspoon
-brew_install_cask alt-tab
 
 # Browsers
-brew_install_cask firefox@nightly
-brew_install_cask google-chrome
+brew_install_cask helium
 
 # Terminals
 brew_install_cask kitty
-brew_install_cask ghostty
-brew_install_cask wezterm
-
-# Editors / IDEs
-brew_install_cask visual-studio-code@insiders
-brew_install_cask zed
-brew_install_cask codex
-
-# Media
-brew_install_cask iina
-brew_install_cask spotify
-brew_install_cask sioyek
-brew_install_cask skim
-
-# Dev tools
-brew_install_cask docker-desktop
+brew_install_cask ghostty@tip
 
 # Productivity
 brew_install_cask tailscale-app
